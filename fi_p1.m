@@ -1,5 +1,5 @@
-function J = J_p1(t, y)
-% usage: J = J_p1(t, y)
+function dy = fi_p1(t, y)
+% usage: dy = fi_p1(t, y)
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -15,11 +15,9 @@ ep = Pdata.ep;
 u = y(1);
 v = y(2);
 
-% form the ODE Jacobian
-Juu = 0;
-Juv = 1;
-Jvu = -2*v*u/ep;
-Jvv = (1-u^2)/ep;
-J = [Juu, Juv; Jvu, Jvv];
+% form the ODE RHS
+du = 0;
+dv = (v - v*u^2)/ep;
+dy = [du; dv];
 
 % end function

@@ -10,14 +10,17 @@
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 clear
 
 % set problem parameters
-fn = 'f_p3';
-Jn = 'J_p3';
-Es = 'EStab_p3';
+fn = @f_p3;
+fe = @fe_p3;
+fi = @fi_p3;
+Jn = @J_p3;
+Ji = @Ji_p3;
+Es = @EStab_p3;
 m = 100;
 Tf = 10;
 tout = linspace(0,Tf,100);
@@ -63,11 +66,14 @@ fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 
 
-% run with a fully-implicit RK method
-mname = 'RadauIIA-3-5-IRK';
-B = butcher(mname);  s = numel(B(1,:))-1;
-fprintf('\nRunning with IRK integrator: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns,nl] = solve_IRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax);
+% run with an ARK method
+mname1 = 'ARK5(4)8L[2]SA-ERK';
+Be = butcher(mname1);  s = numel(Be(1,:))-1;
+mname2 = 'ARK5(4)8L[2]SA-ESDIRK';
+Bi = butcher(mname2);  s = numel(Bi(1,:))-1;
+fprintf('\nRunning with ARK integrator: %s/%s (order = %i)\n',...
+        mname1,mname2,Be(s+1,1))
+[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')

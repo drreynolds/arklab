@@ -1,5 +1,5 @@
-function J = J_p1(t, y)
-% usage: J = J_p1(t, y)
+function J = Ji_p1(t, y)
+% usage: J = Ji_p1(t, y)
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -17,7 +17,7 @@ v = y(2);
 
 % form the ODE Jacobian
 Juu = 0;
-Juv = 1;
+Juv = 0;
 Jvu = -2*v*u/ep;
 Jvv = (1-u^2)/ep;
 J = [Juu, Juv; Jvu, Jvv];

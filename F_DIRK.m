@@ -12,7 +12,7 @@ function F = F_DIRK(z, Fdata)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
 % extract DIRK method information from Fdata
@@ -27,6 +27,6 @@ t  = Fdata.t + Fdata.h*c(st);
 
 % form the DIRK residual
 %    F = z - rhs - h*(a(stage,stage)*fstage)
-F = z - Fdata.rhs - h*A(st,st)*feval(Fdata.fname, t, z);
+F = z - Fdata.rhs - h*A(st,st)*Fdata.f(t, z);
 
 % end of function

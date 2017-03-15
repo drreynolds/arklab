@@ -1,5 +1,5 @@
-function dy = f_p1(t, y)
-% usage: dy = f_p1(t, y)
+function dy = fe_p1(t, y)
+% usage: dy = fe_p1(t, y)
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -7,17 +7,13 @@ function dy = f_p1(t, y)
 % March 2017
 % All Rights Reserved
 
-% model parameters
-global Pdata;
-ep = Pdata.ep;
-
 % extract variables
 u = y(1);
 v = y(2);
 
 % form the ODE RHS
 du = v;
-dv = (v - v*u^2)/ep - u;
+dv = -u;
 dy = [du; dv];
 
 % end function

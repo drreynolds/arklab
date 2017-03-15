@@ -1,5 +1,5 @@
-function F = F_DIRK(z, Fdata)
-% usage: F = F_DIRK(z, Fdata)
+function F = F_ARK(z, Fdata)
+% usage: F = F_ARK(z, Fdata)
 %
 % Inputs:  z = current guess for stage solution
 %          Fdata = structure containing extra information for evaluating F.
@@ -12,21 +12,21 @@ function F = F_DIRK(z, Fdata)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
-% extract DIRK method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
+% extract ARK method information from Fdata
+Bi = Fdata.Bi;
+[Brows, Bcols] = size(Bi);
 s  = Bcols - 1;
-c  = B(1:s,1);
-A  = B(1:s,2:s+1);
+ci = Bi(1:s,1);
+Ai = Bi(1:s,2:s+1);
 h  = Fdata.h;
 st = Fdata.stage;
-t  = Fdata.t + Fdata.h*c(st);
+t  = Fdata.t + Fdata.h*ci(st);
 
-% form the DIRK residual
-%    F = z - rhs - h*(a(stage,stage)*fstage)
-F = z - Fdata.rhs - h*A(st,st)*feval(Fdata.fname, t, z);
+% form the ARK residual
+%    F = z - rhs - h*(ai(stage,stage)*fstage)
+F = z - Fdata.rhs - h*Ai(st,st)*Fdata.fi(t, z);
 
 % end of function

@@ -41,7 +41,7 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
    
@@ -51,6 +51,7 @@ s = Bcols - 1;        % number of stages
 c = B(1:s,1);         % stage time fraction array
 b = (B(s+1,2:s+1))';  % solution weights (convert to column)
 A = B(1:s,2:s+1);     % RK coefficients
+q = B(s+1,1);         % method order
 
 % initialize as non-embedded, until proven otherwise
 embedded = 0;
@@ -89,8 +90,8 @@ t = tvals(1);
 Ynew = Y0;
 
 % create Fdata structure for evaluating solution
-Fdata.fname = fcn;    % ODE RHS function name
-Fdata.B     = B;      % Butcher table 
+Fdata.f = fcn;    % ODE RHS function name
+Fdata.B = B;      % Butcher table 
 
 % set initial time step size
 h = hmin;
@@ -127,7 +128,7 @@ for tstep = 2:length(tvals)
 	 %    zi = y_n + h*sum_{j=1}^{i-1} (A(i,j)*f(zj))
 	 z(:,stage) = Y0;
 	 for j=1:stage-1
-	    z(:,stage) = z(:,stage) + h*A(stage,j)*feval(fcn,t+h*c(j),z(:,j));
+	    z(:,stage) = z(:,stage) + h*A(stage,j)*fcn(t+h*c(j),z(:,j));
 	 end
 	 
       end
@@ -166,7 +167,7 @@ for tstep = 2:length(tvals)
 	    if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
 	    else                     % set next h (I-controller)
-	       h = h_safety * h_old * err_step^(-1.0/p);
+	       h = h_safety * h_old * err_step^(-1.0/q);
 	    end
 
             % enforce maximum growth rate on step sizes
@@ -178,7 +179,7 @@ for tstep = 2:length(tvals)
 	 end
 	 
 	 % limit time step by explicit stability condition
-	 hstab = h_stable * feval(StabFn, t, Ynew);
+	 hstab = h_stable * StabFn(t, Ynew);
 
          % keep statistics on how many steps are accuracy vs stability limited
 	 if (h < hstab)
@@ -256,7 +257,7 @@ end
 f = zeros(nvar,s);
 for is=1:s
    t = Fdata.t + Fdata.h*c(is);
-   f(:,is) = feval(Fdata.fname, t, z(:,is));
+   f(:,is) = Fdata.f(t, z(:,is));
 end
 
 % form the solutions

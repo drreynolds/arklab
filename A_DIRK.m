@@ -12,7 +12,7 @@ function Amat = A_DIRK(z, Fdata)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
 % extract DIRK method information from Fdata
@@ -26,6 +26,6 @@ st = Fdata.stage;
 t  = Fdata.t + Fdata.h*c(st);
 
 % form the DIRK Jacobian
-Amat = eye(length(z)) - Fdata.h*A(st,st)*feval(Fdata.Jname, t, z);
+Amat = eye(length(z)) - Fdata.h*A(st,st)*Fdata.J(t, z);
 
 % end of function

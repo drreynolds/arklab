@@ -23,7 +23,7 @@ function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, ftol, stol, maxit)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
 % check solver inputs
@@ -46,7 +46,7 @@ lits = 0;
 for i=1:maxit
 
    % compute residual at current guess
-   F = feval(Fcn,y,Fdata);
+   F = Fcn(y,Fdata);
 
    % check residual and increment for stopping
    if ((norm(s,inf) < stol) | (norm(F,inf) < ftol))
@@ -55,7 +55,7 @@ for i=1:maxit
    end
    
    % compute Jacobian
-   A = feval(Afn,y,Fdata);
+   A = Afn(y,Fdata);
    
    % perform Newton update
    s = A\F;

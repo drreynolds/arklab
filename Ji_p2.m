@@ -1,5 +1,5 @@
-function J = J_p1(t, y)
-% usage: J = J_p1(t, y)
+function J = Ji_p2(t, y)
+% usage: J = Ji_p2(t, y)
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -11,15 +11,9 @@ function J = J_p1(t, y)
 global Pdata;
 ep = Pdata.ep;
 
-% extract variables
-u = y(1);
-v = y(2);
-
 % form the ODE Jacobian
-Juu = 0;
-Juv = 1;
-Jvu = -2*v*u/ep;
-Jvv = (1-u^2)/ep;
-J = [Juu, Juv; Jvu, Jvv];
+J = [0, 0, 0;
+     0, 0, 0;
+     0, 0, -1/ep];
 
 % end function

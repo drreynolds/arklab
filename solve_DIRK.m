@@ -42,7 +42,7 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
 
@@ -52,6 +52,7 @@ s = Bcols - 1;        % number of stages
 c = B(1:s,1);         % stage time fraction array
 b = (B(s+1,2:s+1))';  % solution weights (convert to column)
 A = B(1:s,2:s+1);     % RK coefficients
+q = B(s+1,1);         % method order
 
 % initialize as non-embedded, until proven otherwise
 embedded = 0;
@@ -91,14 +92,14 @@ t = tvals(1);
 Ynew = Y0;
 
 % create Fdata structure for Newton solver and step solutions
-Fdata.fname = fcn;    % ODE RHS function name
-Fdata.Jname = Jfcn;   % ODE RHS Jacobian function name
-Fdata.B     = B;      % Butcher table 
-Fdata.s     = s;      % number of stages
+Fdata.f = fcn;    % ODE RHS function handle
+Fdata.J = Jfcn;   % ODE RHS Jacobian function handle
+Fdata.B = B;      % Butcher table 
+Fdata.s = s;      % number of stages
 
 % set function names for Newton solver residual/Jacobian
-Fun = 'F_DIRK';
-Jac = 'A_DIRK';
+Fun = @F_DIRK;
+Jac = @A_DIRK;
 
 % set initial time step size
 h = hmin;
@@ -146,7 +147,7 @@ for tstep = 2:length(tvals)
          %    rhs = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
          Fdata.rhs = Y0;
          for j = 1:stage-1
-            Fdata.rhs = Fdata.rhs + h*A(stage,j)*feval(fcn, t+h*c(j), z(:,j));
+            Fdata.rhs = Fdata.rhs + h*A(stage,j)*fcn(t+h*c(j), z(:,j));
          end
          
          % call Newton solver to compute new stage solution
@@ -203,7 +204,7 @@ for tstep = 2:length(tvals)
             if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
             else                     % set next h (I-controller)
-               h = h_safety * h_old * err_step^(-1.0/p);
+               h = h_safety * h_old * err_step^(-1.0/q);
             end
 
             % enforce maximum growth rate on step sizes
@@ -281,7 +282,7 @@ end
 f = zeros(nvar,s);
 for is=1:s
    t = Fdata.t + Fdata.h*c(is);
-   f(:,is) = feval(Fdata.fname, t, z(:,is));
+   f(:,is) = Fdata.f(t, z(:,is));
 end
 
 % form the solutions

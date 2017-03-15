@@ -1,29 +1,32 @@
-function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax)
-% usage: [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax)
+function [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
+                                              Bi, rtol, atol, hmin, hmax)
+% usage: [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
+%                                             Bi, rtol, atol, hmin, hmax)
 %
-% Adaptive time step diagonally-implicit Runge-Kutta solver for the
-% vector-valued ODE problem 
-%     y' = F(t,Y), t in tvals, y in R^m,
+% Adaptive time step additive Runge-Kutta solver for the
+% vector-valued ODE problem  
+%     y' = fe(t,Y) + fi(t,Y), t in tvals, y in R^m,
 %     Y(t0) = [y1(t0), y2(t0), ..., ym(t0)]'.
 %
 % Inputs:
-%     fcn    = string holding function name for F(t,Y)
-%     Jfcn   = string holding function name for Jacobian of F, J(t,Y)
+%     fe     = function handle for fe(t,Y)
+%     fi     = function handle for fi(t,Y)
+%     Ji     = function handle for Jacobian of fi, J(t,Y)
 %     tvals  = [t0, t1, t2, ..., tN]
 %     Y0     = initial value array (column vector of length m)
-%     B      = Butcher matrix for IRK coefficients, of the form
-%                 B = [c A;
-%                      q b;
-%                      p b2 ]
-%              Here, c is a vector of stage time fractions (s-by-1),
-%                    A is a matrix of Butcher coefficients (s-by-s),
+%     Be,Bi  = Butcher table matrices for ARK coefficients, of the form
+%                 Be = [ce Ae;       Bi = [ci Ai;
+%                       q  be;             q  bi;
+%                       p  be2 ]           p  bi2 ]
+%              Here, ce,ci are vectors of stage time fractions (s-by-1),
+%                    Ae,Ai are matrices of Butcher coefficients (s-by-s),
 %                    q is an integer denoting the method order of accuracy,
-%                    b is a vector of solution weights (1-by-s),
+%                    be,bi are vectors of solution weights (1-by-s),
 %                    p is an integer denoting the embedding order of accuracy,
-%                    b2 is a vector of embedding weights (1-by-s),
-%              The [p, b2] row is optional.  If that row is not
-%              provided the method will default to taking fixed
-%              step sizes of size hmin.
+%                    be2,bi2 are vectors of embedding weights (1-by-s),
+%              The [p, be2] and [p, bi2] rows are optional.  If
+%              both of those are not provided the method will default to
+%              taking fixed step sizes of size hmin.
 %     rtol   = desired relative error of solution  (scalar)
 %     atol   = desired absolute error of solution  (vector or scalar)
 %     hmin   = minimum internal time step size (hmin <= t(i)-t(i-1), for all i)
@@ -42,25 +45,45 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% August 2012
+% March 2017
 % All Rights Reserved
 
+% check for compatible Be,Bi tables
+if (size(Be,2) ~= size(Bi,2))   
+   error('solve_ARK error: Be and Bi must have the same number of stages')
+end
+s = size(Be,2) - 1;          % number of stages
+if (Be(s+1,1) ~= Bi(s+1,1))
+   error('solve_ARK error: Be and Bi must have the same method order')
+end
+if (size(Be,1) > size(Be,2))
+   if (Be(s+1,2) ~= Bi(s+1,2))
+      error('solve_ARK error: Be and Bi must have the same embedding order')
+   end
+end
 
-% extract DIRK method information from B
-[Brows, Bcols] = size(B);
-s = Bcols - 1;        % number of stages
-c = B(1:s,1);         % stage time fraction array
-b = (B(s+1,2:s+1))';  % solution weights (convert to column)
-A = B(1:s,2:s+1);     % RK coefficients
+% extract ERK method information from Be
+[Brows, Bcols] = size(Be);
+ce = Be(1:s,1);         % stage time fraction array
+be = (Be(s+1,2:s+1))';  % solution weights (convert to column)
+Ae = Be(1:s,2:s+1);     % RK coefficients
+q  = Be(s+1,1);         % method order
+
+% extract DIRK method information from Bi
+[Brows, Bcols] = size(Bi);
+ci = Bi(1:s,1);         % stage time fraction array
+bi = (Bi(s+1,2:s+1))';  % solution weights (convert to column)
+Ai = Bi(1:s,2:s+1);     % RK coefficients
 
 % initialize as non-embedded, until proven otherwise
 embedded = 0;
 p = 0;
 if (Brows > Bcols)
-   if (max(abs(B(s+2,2:s+1))) > eps)
+   if ((max(abs(Be(s+2,2:s+1))) > eps) && (max(abs(Bi(s+2,2:s+1))) > eps))
       embedded = 1;
-      b2 = (B(s+2,2:s+1))';
-      p = B(s+2,1);
+      be2 = (Be(s+2,2:s+1))';
+      bi2 = (Bi(s+2,2:s+1))';
+      p = Be(s+2,1);
    end
 end
 
@@ -91,14 +114,16 @@ t = tvals(1);
 Ynew = Y0;
 
 % create Fdata structure for Newton solver and step solutions
-Fdata.fname = fcn;    % ODE RHS function name
-Fdata.Jname = Jfcn;   % ODE RHS Jacobian function name
-Fdata.B     = B;      % Butcher table 
-Fdata.s     = s;      % number of stages
+Fdata.fe = fe;    % ODE RHS function names
+Fdata.fi = fi;
+Fdata.Ji = Ji;    % ODE RHS Jacobian function name
+Fdata.Be = Be;    % Butcher tables
+Fdata.Bi = Bi;
+Fdata.s  = s;     % number of stages
 
 % set function names for Newton solver residual/Jacobian
-Fun = 'F_DIRK';
-Jac = 'A_DIRK';
+Fun = @F_ARK;
+Jac = @A_ARK;
 
 % set initial time step size
 h = hmin;
@@ -146,7 +171,8 @@ for tstep = 2:length(tvals)
          %    rhs = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
          Fdata.rhs = Y0;
          for j = 1:stage-1
-            Fdata.rhs = Fdata.rhs + h*A(stage,j)*feval(fcn, t+h*c(j), z(:,j));
+            Fdata.rhs = Fdata.rhs + h*Ae(stage,j)*fe(t+h*ce(j), z(:,j)) ...
+                                  + h*Ai(stage,j)*fi(t+h*ci(j), z(:,j));
          end
          
          % call Newton solver to compute new stage solution
@@ -203,7 +229,7 @@ for tstep = 2:length(tvals)
             if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
             else                     % set next h (I-controller)
-               h = h_safety * h_old * err_step^(-1.0/p);
+               h = h_safety * h_old * err_step^(-1.0/q);
             end
 
             % enforce maximum growth rate on step sizes
@@ -257,17 +283,22 @@ function [y,y2] = Y_DIRK(z, Fdata)
 %               table; otherwise the same as y)
 
 % extract method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
+Be = Fdata.Be;
+Bi = Fdata.Bi;
+[Brows, Bcols] = size(Be);
 s = Bcols - 1;
-c = B(1:s,1);
-b = (B(s+1,2:s+1))';
+ce = Be(1:s,1);
+ci = Bi(1:s,1);
+be = (Be(s+1,2:s+1))';
+bi = (Bi(s+1,2:s+1))';
 
 % check to see if we have coefficients for embedding
 if (Brows > Bcols)
-   b2 = (B(s+2,2:s+1))';
+   be2 = (Be(s+2,2:s+1))';
+   bi2 = (Bi(s+2,2:s+1))';
 else
-   b2 = b;
+   be2 = be;
+   bi2 = bi;
 end
 
 % get some problem information
@@ -278,18 +309,20 @@ if (zcols ~= s)
 end
 
 % call RHS at our stages
-f = zeros(nvar,s);
+fe = zeros(nvar,s);
+fi = zeros(nvar,s);
 for is=1:s
-   t = Fdata.t + Fdata.h*c(is);
-   f(:,is) = feval(Fdata.fname, t, z(:,is));
+   t = Fdata.t + Fdata.h*ce(is);
+   fe(:,is) = Fdata.fe(t, z(:,is));
+
+   t = Fdata.t + Fdata.h*ci(is);
+   fi(:,is) = Fdata.fi(t, z(:,is));
 end
 
 % form the solutions
-%    ynew = yold + h*sum(b(j)*fj)
-y  = Fdata.yold + Fdata.h*f*b;
-y2 = Fdata.yold + Fdata.h*f*b2;
+%    ynew = yold + h*sum(be(j)*fe(j) + bi(j)*fi(j))
+y  = Fdata.yold + Fdata.h*fe*be + Fdata.h*fi*bi;
+y2 = Fdata.yold + Fdata.h*fe*be2 + Fdata.h*fi*bi2;
 
 % end of function
 end
-
-

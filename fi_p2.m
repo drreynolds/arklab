@@ -1,5 +1,5 @@
-function dy = f_p2(t, y)
-% usage: dy = f_p2(t, y)
+function dy = fi_p2(t, y)
+% usage: dy = fi_p2(t, y)
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -9,13 +9,12 @@ function dy = f_p2(t, y)
 
 % model parameters
 global Pdata;
-a  = Pdata.a; 
 b  = Pdata.b; 
 ep = Pdata.ep;
 
 % form the ODE RHS
-dy = [a - (y(3)+1)*y(1) + y(1)*y(1)*y(2);
-      y(3)*y(1) - y(1)*y(1)*y(2);
-      (b-y(3))/ep - y(3)*y(1)];
+dy = [0;
+      0;
+      (b-y(3))/ep];
 
 % end function
