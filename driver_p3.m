@@ -15,12 +15,6 @@
 clear
 
 % set problem parameters
-fn = @f_p3;
-fe = @fe_p3;
-fi = @fi_p3;
-Jn = @J_p3;
-Ji = @Ji_p3;
-Es = @EStab_p3;
 m = 100;
 Tf = 10;
 tout = linspace(0,Tf,100);
@@ -42,6 +36,13 @@ u0 = Pdata.a + 0.1*sin(pi*xspan);
 v0 = Pdata.b/Pdata.a + 0.1*sin(pi*xspan);
 Y0 = [u0; v0];
 
+% set problem-defining functions
+fn = @f_p3;
+fe = @fe_p3;
+fi = @fi_p3;
+Jn = @J_p3;
+Ji = @Ji_p3;
+Es = @(t,y) 1/max(abs(eigs(Jn(t,y))));
 
 % plot "true" solution at end of run
 opts = odeset('RelTol',1e-12, 'AbsTol',atol,'InitialStep',hmin/10, 'MaxStep',hmax);
@@ -54,11 +55,11 @@ set(gca,'FontSize',12)
 print('-dpng','brusselator1D')
 
 
-% run with a diagonally-implicit RK method
+% run with a diagonally-implicit RK method, algorithm 0
 mname = 'Kvaerno(7,4,5)-ESDIRK';
 B = butcher(mname);  s = numel(B(1,:))-1;
-fprintf('\nRunning with DIRK integrator: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns,nl] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax);
+fprintf('\nRunning with DIRK integrator, algorithm 0: %s (order = %i)\n',mname,B(s+1,1))
+[t,Y,ns,nl] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax, 0);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
@@ -66,14 +67,25 @@ fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 
 
-% run with an ARK method
+% run with a diagonally-implicit RK method, algorithm 1
+mname = 'Kvaerno(7,4,5)-ESDIRK';
+B = butcher(mname);  s = numel(B(1,:))-1;
+fprintf('\nRunning with DIRK integrator, algorithm 1: %s (order = %i)\n',mname,B(s+1,1))
+[t,Y,ns,nl] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax, 1);
+err_max = max(max(abs(Y'-Ytrue)));
+err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
+fprintf('Accuracy/Work Results:\n')
+fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
+fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+
+
+% run with an ARK method, algorithm 0
 mname1 = 'ARK5(4)8L[2]SA-ERK';
 Be = butcher(mname1);  s = numel(Be(1,:))-1;
 mname2 = 'ARK5(4)8L[2]SA-ESDIRK';
 Bi = butcher(mname2);  s = numel(Bi(1,:))-1;
-fprintf('\nRunning with ARK integrator: %s/%s (order = %i)\n',...
-        mname1,mname2,Be(s+1,1))
-[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax);
+fprintf('\nRunning with ARK integrator, algorithm 0: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
+[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 0);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
@@ -81,16 +93,30 @@ fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 
 
-% run with an explicit RK method
-mname = 'Merson-5-4-ERK';
-B = butcher(mname);  s = numel(B(1,:))-1;
-fprintf('\nRunning with ERK integrator: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hmin, hmax);
+% run with an ARK method, algorithm 1
+mname1 = 'ARK5(4)8L[2]SA-ERK';
+Be = butcher(mname1);  s = numel(Be(1,:))-1;
+mname2 = 'ARK5(4)8L[2]SA-ESDIRK';
+Bi = butcher(mname2);  s = numel(Bi(1,:))-1;
+fprintf('\nRunning with ARK integrator, algorithm 1: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
+[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 1);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
-fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
+fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+
+
+% $$$ % run with an explicit RK method
+% $$$ mname = 'Merson-5-4-ERK';
+% $$$ B = butcher(mname);  s = numel(B(1,:))-1;
+% $$$ fprintf('\nRunning with ERK integrator: %s (order = %i)\n',mname,B(s+1,1))
+% $$$ [t,Y,ns] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hmin, hmax);
+% $$$ err_max = max(max(abs(Y'-Ytrue)));
+% $$$ err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
+% $$$ fprintf('Accuracy/Work Results:\n')
+% $$$ fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
+% $$$ fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
 
 
 % end of script

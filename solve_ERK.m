@@ -7,8 +7,8 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 %     Y(t0) = [y1(t0), y2(t0), ..., ym(t0)]'.
 %
 % Inputs:
-%     fcn    = string holding function name for F(t,Y)
-%     StabFn = string holding function name for stability constraint on F
+%     fcn    = function handle for F(t,Y)
+%     StabFn = function handle for stability constraint on F
 %     tvals  = [t0, t1, t2, ..., tN]
 %     Y0     = initial value array (column vector of length m)
 %     B      = Butcher matrix for IRK coefficients, of the form
@@ -59,9 +59,11 @@ p = 0;
 if (Brows > Bcols)
    if (max(abs(B(s+2,2:s+1))) > eps)
       embedded = 1;
-      b2 = (B(s+2,2:s+1))';
+      d = (B(s+2,2:s+1))';
       p = B(s+2,1);
    end
+else
+   d = b;
 end
 
 % initialize output arrays
@@ -91,7 +93,17 @@ Ynew = Y0;
 
 % create Fdata structure for evaluating solution
 Fdata.f = fcn;    % ODE RHS function name
-Fdata.B = B;      % Butcher table 
+Fdata.A = A;      % Butcher tables
+Fdata.c = c;
+Fdata.b = b;
+Fdata.d = d;
+Fdata.s  = s;     % number of stages
+
+% set function names for solve components
+Init  = @Init_z;   % initializes solution storage
+Sol   = @Sol_z;    % time-evolved solution
+Store = @Store_z;  % stores per-stage results
+Calc  = @Calc_z;   % computes new stage using known data
 
 % set initial time step size
 h = hmin;
@@ -109,14 +121,14 @@ for tstep = 2:length(tvals)
       h = max([h, hmin]);            % enforce minimum time step size
       h = min([h, hmax]);            % maximum time step size
       h = min([h, tvals(tstep)-t]);  % stop at output time
-      Fdata.h = h;
-      Fdata.yold = Y0;
 
       % set Fdata values for this step
+      Fdata.h    = h;    % current step size
+      Fdata.yold = Y0;   % solution from previous step
       Fdata.t    = t;    % time of last successful step
 
       % initialize data storage for multiple stages
-      z = zeros(m,s);
+      storage = Init(Y0,Fdata);
 
       % reset step failure flag
       st_fail = 0;
@@ -124,12 +136,10 @@ for tstep = 2:length(tvals)
       % loop over stages
       for stage=1:s
 	 
-	 % construct stage solution
-	 %    zi = y_n + h*sum_{j=1}^{i-1} (A(i,j)*f(zj))
-	 z(:,stage) = Y0;
-	 for j=1:stage-1
-	    z(:,stage) = z(:,stage) + h*A(stage,j)*fcn(t+h*c(j),z(:,j));
-	 end
+         % Compute new stage, and store appropriately
+         Fdata.stage = stage;
+         Znew = Calc(storage, Fdata);
+         storage = Store(Znew, Fdata, storage);
 	 
       end
 
@@ -137,7 +147,7 @@ for tstep = 2:length(tvals)
       nsteps = nsteps + 1;
 
       % compute new solution (and embedding if available)
-      [Ynew,Y2] = Y_ERK(z,Fdata);
+      [Ynew,Y2] = Sol(storage,Fdata);
       
       % if time step adaptivity enabled, check step accuracy
       if (embedded)
@@ -218,10 +228,44 @@ end
 
 
 
+%======= Auxiliary routines when solving for ARK _stages_ =======%
 
 
-function [y,y2] = Y_ERK(z, Fdata)
-% usage: [y,y2] = Y_ERK(z, Fdata)
+
+function [z] = Init_z(yold, Fdata)
+% usage: [z] = Init_z(yold, Fdata)
+%
+% Sets aside storage for reusable data in following routines   
+z = zeros(length(yold),Fdata.s);
+end
+
+
+function [z] = Store_z(Znew, Fdata, z)
+% usage: [z] = Store_z(Znew, Fdata, z)
+%
+% Packs reusable data following a stage solve
+z(:,Fdata.stage) = Znew;
+end
+
+
+function [Znew] = Calc_z(z, Fdata)
+% usage: [Znew] = Calc_z(z, Fdata)
+%
+% Inputs:
+%    z     = old stage solutions [z_1, ..., z_{stage-1}]
+%    Fdata = structure containing extra problem information
+%
+% Outputs: 
+%    Znew  = new stage solution
+Znew = Fdata.yold;
+for j = 1:Fdata.stage-1
+   Znew = Znew + Fdata.h*Fdata.A(Fdata.stage,j)*Fdata.f(Fdata.t+Fdata.h*Fdata.c(j), z(:,j));
+end
+end
+
+
+function [y,y2] = Sol_z(z, Fdata)
+% usage: [y,y2] = Sol_z(z, Fdata)
 %
 % Inputs:
 %    z     = stage solutions [z1, ..., zs]
@@ -232,38 +276,15 @@ function [y,y2] = Y_ERK(z, Fdata)
 %    y2    = embedded solution (if embedding included in Butcher 
 %               table; otherwise the same as y)
 
-% extract method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
-s = Bcols - 1;
-c = B(1:s,1);
-b = (B(s+1,2:s+1))';
-
-% check to see if we have coefficients for embedding
-if (Brows > Bcols)
-   b2 = (B(s+2,2:s+1))';
-else
-   b2 = b;
-end
-
-% get some problem information
-[zrows,zcols] = size(z);
-nvar = zrows;
-if (zcols ~= s)
-   error('Y_ERK error: z has incorrect number of stages');
-end
-
-% call RHS at our stages
-f = zeros(nvar,s);
-for is=1:s
-   t = Fdata.t + Fdata.h*c(is);
+% call RHS at each stored stage
+f = zeros(size(z,1),Fdata.s);
+for is=1:Fdata.s
+   t = Fdata.t + Fdata.h*Fdata.c(is);
    f(:,is) = Fdata.f(t, z(:,is));
 end
 
 % form the solutions
-%    ynew = yold + h*sum(b(j)*fj)
-y  = Fdata.yold + Fdata.h*f*b;
-y2 = Fdata.yold + Fdata.h*f*b2;
-
-% end of function
+%    ynew = yold + h*sum(b(j)*f(j))
+y  = Fdata.yold + Fdata.h*f*Fdata.b;
+y2 = Fdata.yold + Fdata.h*f*Fdata.d;
 end

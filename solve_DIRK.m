@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax)
-% usage: [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax)
+function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+% usage: [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step diagonally-implicit Runge-Kutta solver for the
 % vector-valued ODE problem 
@@ -7,8 +7,8 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 %     Y(t0) = [y1(t0), y2(t0), ..., ym(t0)]'.
 %
 % Inputs:
-%     fcn    = string holding function name for F(t,Y)
-%     Jfcn   = string holding function name for Jacobian of F, J(t,Y)
+%     fcn    = function handle for F(t,Y)
+%     Jfcn   = function handle for Jacobian of F, J(t,Y)%
 %     tvals  = [t0, t1, t2, ..., tN]
 %     Y0     = initial value array (column vector of length m)
 %     B      = Butcher matrix for IRK coefficients, of the form
@@ -28,6 +28,10 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 %     atol   = desired absolute error of solution  (vector or scalar)
 %     hmin   = minimum internal time step size (hmin <= t(i)-t(i-1), for all i)
 %     hmax   = maximum internal time step size (hmax >= hmin)
+%     alg    = solution algorithm (from 'ARKStep Implicit Solution
+%              Methods' document, section 2)
+%                 0 - solve for stages, z_i
+%                 1 - solve for stage RHS, k_i
 %
 % Outputs: 
 %     tvals  = the same as the input array tvals
@@ -60,9 +64,11 @@ p = 0;
 if (Brows > Bcols)
    if (max(abs(B(s+2,2:s+1))) > eps)
       embedded = 1;
-      b2 = (B(s+2,2:s+1))';
+      d = (B(s+2,2:s+1))';
       p = B(s+2,1);
    end
+else
+   d = b;
 end
 
 % initialize output arrays
@@ -94,12 +100,30 @@ Ynew = Y0;
 % create Fdata structure for Newton solver and step solutions
 Fdata.f = fcn;    % ODE RHS function handle
 Fdata.J = Jfcn;   % ODE RHS Jacobian function handle
-Fdata.B = B;      % Butcher table 
+Fdata.A = A;      % Butcher table
+Fdata.c = c;
+Fdata.b = b;
+Fdata.d = d;
 Fdata.s = s;      % number of stages
 
-% set function names for Newton solver residual/Jacobian
-Fun = @F_DIRK;
-Jac = @A_DIRK;
+% set function names for solve components
+if (alg == 1) 
+   Init  = @Init_k;   % initializes solution storage
+   Guess = @Guess_k;  % initial Newton guess
+   Rhs   = @Rhs_k;    % just before equation (45)
+   Res   = @Res_k;    % equation (45)
+   Jres  = @Jres_k;   % equation (46)
+   Sol   = @Sol_k;    % time-evolved solution
+   Store = @Store_k;  % stores per-stage results
+else
+   Init  = @Init_z;   % initializes solution storage
+   Guess = @Guess_z;  % initial Newton guess
+   Rhs   = @Rhs_z;    % just before equation (41)
+   Res   = @Res_z;    % equation (41)
+   Jres  = @Jres_z;   % equation (42)
+   Sol   = @Sol_z;    % time-evolved solution
+   Store = @Store_z;  % stores per-stage results
+end
 
 % set initial time step size
 h = hmin;
@@ -125,7 +149,7 @@ for tstep = 2:length(tvals)
       Fdata.t    = t;    % time of last successful step
 
       % initialize data storage for multiple stages
-      z = zeros(m,s);
+      [storage,NewtSol] = Init(Y0,Fdata);
 
       % reset stage failure flag
       st_fail = 0;
@@ -133,28 +157,24 @@ for tstep = 2:length(tvals)
       % loop over stages
       for stage = 1:s
          
-         % set Newton initial guess as previous stage solution
-         Yguess = Ynew;
-         
-         % set current stage index into Fdata structure
-         Fdata.stage = stage;
-         
-         % construct RHS comprised of old time data
-         %    zi = y_n + h*sum_{j=1}^s (a(i,j)*fj)
-         % <=>
-         %    zi - h*(a(i,i)*fi) = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
-         % =>
-         %    rhs = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
-         Fdata.rhs = Y0;
-         for j = 1:stage-1
-            Fdata.rhs = Fdata.rhs + h*A(stage,j)*fcn(t+h*c(j), z(:,j));
-         end
-         
-         % call Newton solver to compute new stage solution
-         [Ynew,lin,ierr] = newton(Fun, Jac, Yguess, Fdata, ...
-                                  newt_ftol, newt_stol, newt_maxit);
+         % Update Fdata structure for current stage
+         Fdata.tcur = t + h*c(stage);      % 'time' for current stage
+         Fdata.stage = stage;              % current stage index
+         Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
 
-         % increment total linear solver statistics
+         % set nonlinear solver tolerances based on 'alg' type
+         if (alg == 1) 
+            ftol = newt_ftol / h;
+            stol = newt_stol / h;
+         else
+            ftol = newt_ftol;
+            stol = newt_stol;
+         end         
+         
+         % set Newton initial guess, call Newton solver, and
+         % increment linear solver statistics
+         NewtGuess = Guess(NewtSol, Fdata, storage);
+         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, ftol, stol, newt_maxit);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
@@ -166,7 +186,7 @@ for tstep = 2:length(tvals)
          end
          
          % store stage solution
-         z(:,stage) = Ynew;
+         storage = Store(NewtSol, Fdata, storage);
          
       end
       
@@ -174,7 +194,7 @@ for tstep = 2:length(tvals)
       nsteps = nsteps + 1;
       
       % compute new solution (and embedding if available)
-      [Ynew,Y2] = Y_DIRK(z,Fdata);
+      [Ynew,Y2] = Sol(storage,Fdata);
 
       % if stages succeeded and time step adaptivity enabled, check step accuracy
       if ((st_fail == 0) & embedded)
@@ -243,10 +263,96 @@ end
 
 
 
+%======= Auxiliary routines when solving for ARK _stages_ =======%
 
 
-function [y,y2] = Y_DIRK(z, Fdata)
-% usage: [y,y2] = Y_DIRK(z, Fdata)
+
+function [z,NewtGuess] = Init_z(yold, Fdata)
+% usage: [z,NewtGuess] = Init_z(yold, Fdata)
+%
+% Sets aside storage for reusable data in following routines, 
+% and initializes first Newton solver guess   
+z = zeros(length(yold),Fdata.s);
+NewtGuess = yold;
+end
+
+
+function [Y] = Guess_z(Ynew, Fdata, z)
+% usage: [Y] = Guess_z(Ynew, Fdata, z)
+%
+% Sets the initial guess for the Newton iteration stage solve,
+% where 'Ynew' was the most-recently-computed solution
+Y = Ynew;
+end
+
+
+function [z] = Store_z(Ynew, Fdata, z)
+% usage: [z] = Store_z(Ynew, Fdata, z)
+%
+% Packs reusable data following a stage solve
+z(:,Fdata.stage) = Ynew;
+end
+
+
+function [r] = Rhs_z(z, Fdata)
+% usage: [r] = Rhs_z(z, Fdata)
+%
+% Inputs:
+%    z     = stage solutions [z_1, ..., z_{stage-1}]
+%    Fdata = structure containing extra problem information
+%
+% Outputs: 
+%    r     = rhs vector containing all 'known' information for
+%            implicit stage solve
+%
+%    zi = y_n + h*sum_{j=1}^i (a(i,j)*fj)
+% <=>
+%    zi - h*(a(i,i)*fi) = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
+% =>
+%    rhs = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
+   
+% construct rhs
+r = Fdata.yold;
+for j = 1:Fdata.stage-1
+   r = r + Fdata.h*Fdata.A(Fdata.stage,j)*Fdata.f(Fdata.t+Fdata.h*Fdata.c(j), z(:,j));
+end
+end
+
+
+function F = Res_z(z, Fdata)
+% usage: F = Res_z(z, Fdata)
+%
+% Inputs:  z = current guess for stage solution
+%          Fdata = structure containing extra information for evaluating F.
+% Outputs: F = residual at current guess
+%
+% This function computes the (non)linear residuals for an intermediate
+% stage solution, through calling the user-supplied (in Fdata) ODE
+% right-hand side function.
+   
+F = z - Fdata.rhs - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.f(Fdata.tcur, z);
+
+end
+
+
+function Amat = Jres_z(z, Fdata)
+% usage: Amat = Jres_z(z, Fdata)
+%
+% Inputs:  z = current guess for stage solution
+%          Fdata = structure containing extra information for evaluating F.
+% Outputs: Amat = Jacobian at current guess
+%
+% This function computes the Jacobian of each intermediate stage residual
+% for a multi-stage ARK method, through calling the user-supplied (in
+% Fdata) ODE Jacobian function. 
+
+Amat = eye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.J(Fdata.tcur, z);
+
+end
+
+
+function [y,y2] = Sol_z(z, Fdata)
+% usage: [y,y2] = Sol_z(z, Fdata)
 %
 % Inputs:
 %    z     = stage solutions [z1, ..., zs]
@@ -257,111 +363,118 @@ function [y,y2] = Y_DIRK(z, Fdata)
 %    y2    = embedded solution (if embedding included in Butcher 
 %               table; otherwise the same as y)
 
-% extract method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
-s = Bcols - 1;
-c = B(1:s,1);
-b = (B(s+1,2:s+1))';
-
-% check to see if we have coefficients for embedding
-if (Brows > Bcols)
-   b2 = (B(s+2,2:s+1))';
-else
-   b2 = b;
-end
-
-% get some problem information
-[zrows,zcols] = size(z);
-nvar = zrows;
-if (zcols ~= s)
-   error('Y_DIRK error: z has incorrect number of stages');
-end
-
-% call RHS at our stages
-f = zeros(nvar,s);
-for is=1:s
-   t = Fdata.t + Fdata.h*c(is);
+% call RHS at each stored stage
+f = zeros(size(z,1),Fdata.s);
+for is=1:Fdata.s
+   t = Fdata.t + Fdata.h*Fdata.c(is);
    f(:,is) = Fdata.f(t, z(:,is));
 end
 
 % form the solutions
-%    ynew = yold + h*sum(b(j)*fj)
-y  = Fdata.yold + Fdata.h*f*b;
-y2 = Fdata.yold + Fdata.h*f*b2;
-
-% end of function
+%    ynew = yold + h*sum(b(j)*f(j))
+y  = Fdata.yold + Fdata.h*f*Fdata.b;
+y2 = Fdata.yold + Fdata.h*f*Fdata.d;
 end
 
 
 
+%======= Auxiliary routines when solving for ARK _RHS_ =======%
 
-function F = F_DIRK(z, Fdata)
-% usage: F = F_DIRK(z, Fdata)
+
+
+function [K,NewtGuess] = Init_k(yold, Fdata)
+% usage: [K,NewtGuess] = Init_k(yold, Fdata)
 %
-% Inputs:  z = current guess for stage solution
+% Sets aside storage for reusable data in following routines, 
+% and initializes first Newton solver guess   
+K = zeros(length(yold),Fdata.s);   % (sol vec) x (stages)
+NewtGuess = Fdata.f(Fdata.t, yold);
+end
+
+
+function [k] = Guess_k(ksol, Fdata, K)
+% usage: [k] = Guess_k(ksol, Fdata, K)
+%
+% Sets the initial guess for the Newton iteration stage solve,
+% where 'ksol' was the most-recently-computed solution
+k = ksol;
+end
+
+
+function [K] = Store_k(ksol, Fdata, K)
+% usage: [K] = Store_k(ksol, Fdata, K)
+%
+% Packs reusable data following a stage solve
+K(:,Fdata.stage) = ksol;
+end
+
+
+function [r] = Rhs_k(K, Fdata)
+% usage: [r] = Rhs_k(K, Fdata)
+%
+% Inputs:
+%    K     = stage rhs [f(z_1), ..., f(z_{stage-1})]
+%    Fdata = structure containing extra problem information
+%
+% Outputs: 
+%    r     = rhs vector containing all 'known' information for
+%            implicit stage solve
+%
+%    rhs = y_n + h*sum_{j=1}^{i-1} (a(i,j)*fj)
+   
+% construct rhs
+r = Fdata.yold;
+for j = 1:Fdata.stage-1
+   r = r + Fdata.h*Fdata.A(Fdata.stage,j)*K(:,j);
+end
+end
+
+
+function F = Res_k(k, Fdata)
+% usage: F = Res_k(k, Fdata)
+%
+% Inputs:  k = current guess for stage rhs
 %          Fdata = structure containing extra information for evaluating F.
 % Outputs: F = residual at current guess
 %
 % This function computes the (non)linear residuals for an intermediate
 % stage solution, through calling the user-supplied (in Fdata) ODE
 % right-hand side function.
-%
-% Daniel R. Reynolds
-% Department of Mathematics
-% Southern Methodist University
-% March 2017
-% All Rights Reserved
-
-% extract DIRK method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
-s  = Bcols - 1;
-c  = B(1:s,1);
-A  = B(1:s,2:s+1);
-h  = Fdata.h;
-st = Fdata.stage;
-t  = Fdata.t + Fdata.h*c(st);
-
-% form the DIRK residual
-%    F = z - rhs - h*(a(stage,stage)*fstage)
-F = z - Fdata.rhs - h*A(st,st)*Fdata.f(t, z);
-
-% end of function
+   
+F = k - Fdata.f(Fdata.tcur, Fdata.rhs + Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*k);
 end
 
 
-
-
-function Amat = A_DIRK(z, Fdata)
-% usage: Amat = A_DIRK(z, Fdata)
+function Amat = Jres_k(k, Fdata)
+% usage: Amat = Jres_k(k, Fdata)
 %
-% Inputs:  z = current guess for stage solution
+% Inputs:  k = current guess for stage rhs
 %          Fdata = structure containing extra information for evaluating F.
 % Outputs: Amat = Jacobian at current guess
 %
 % This function computes the Jacobian of each intermediate stage residual
-% for a multi-stage DIRK method, through calling the user-supplied (in
+% for a multi-stage ARK method, through calling the user-supplied (in
 % Fdata) ODE Jacobian function. 
+
+Aii = Fdata.A(Fdata.stage,Fdata.stage);
+Amat = eye(length(k)) - Fdata.h*Aii * Fdata.J(Fdata.tcur, Fdata.rhs + Fdata.h*Aii*k);
+end
+
+
+function [y,y2] = Sol_k(K, Fdata)
+% usage: [y,y2] = Sol_k(K, Fdata)
 %
-% Daniel R. Reynolds
-% Department of Mathematics
-% Southern Methodist University
-% March 2017
-% All Rights Reserved
+% Inputs:
+%    K     = stage RHS vectors [f(z1), ..., f(zs)]
+%    Fdata = structure containing extra problem information
+%
+% Outputs: 
+%    y     = step solution
+%    y2    = embedded solution (if embedding included in Butcher 
+%               table; otherwise the same as y)
 
-% extract DIRK method information from Fdata
-B = Fdata.B;
-[Brows, Bcols] = size(B);
-s  = Bcols - 1;
-c  = B(1:s,1);
-b  = (B(s+1,2:s+1))';
-A  = B(1:s,2:s+1);
-st = Fdata.stage;
-t  = Fdata.t + Fdata.h*c(st);
-
-% form the DIRK Jacobian
-Amat = eye(length(z)) - Fdata.h*A(st,st)*Fdata.J(t, z);
-
-% end of function
+% have RHS at each stored stage, so just piece together
+%    ynew = yold + h*sum(b(j)*f(j))
+y  = Fdata.yold + Fdata.h*K*Fdata.b;
+y2 = Fdata.yold + Fdata.h*K*Fdata.d;
 end
