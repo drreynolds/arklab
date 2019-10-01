@@ -28,9 +28,8 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 %     atol   = desired absolute error of solution  (vector or scalar)
 %     hmin   = minimum internal time step size (hmin <= t(i)-t(i-1), for all i)
 %     hmax   = maximum internal time step size (hmax >= hmin)
-%     alg    = solution algorithm (from 'ARKStep Implicit Solution
-%              Methods' document, section 2)
-%                 0 - solve for stages, z_i
+%     alg    = (optional) solution algorithm:
+%                 0 - solve for stages, z_i  [default]
 %                 1 - solve for stage RHS, k_i
 %
 % Outputs: 
@@ -49,6 +48,11 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 % March 2017
 % All Rights Reserved
 
+
+% handle optional 'alg' input
+if ~exist('alg','var')
+   alg = 0;
+end
 
 % extract DIRK method information from B
 [Brows, Bcols] = size(B);
