@@ -115,8 +115,9 @@ newt_maxit = 20;           % max number of Newton iterations
 newt_rtol  = rtol/10;      % Newton solver relative tolerance
 newt_atol  = atol/10;      % Newton solver absolute tolerance
 h_reduce   = 0.1;          % failed step reduction factor 
-h_safety   = 0.9;          % adaptivity safety factor
+h_safety   = 0.96;         % adaptivity safety factor
 h_growth   = 10;           % adaptivity growth bound
+e_bias     = 1.5;          % error bias factor
 ONEMSM     = 1-sqrt(eps);  % coefficients to account for
 ONEPSM     = 1+sqrt(eps);  %   floating-point roundoff
 ERRTOL     = 1.1;          % upper bound on allowed step error
@@ -187,7 +188,7 @@ for tstep = 2:length(tvals)
       Fdata.t    = t;    % time of last successful step
 
       % set error-weight vector for this step
-      w = Ewt(Fdata);
+      ewt = Ewt(Fdata);
 
       % initialize data storage for multiple stages
       [storage,NewtSol] = Init(Y0,Fdata);
@@ -215,7 +216,7 @@ for tstep = 2:length(tvals)
          % set Newton initial guess, call Newton solver, and
          % increment linear solver statistics
          NewtGuess = Guess(NewtSol, Fdata, storage);
-         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, n_rtol, n_atol, newt_maxit);
+         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_maxit);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
@@ -241,7 +242,7 @@ for tstep = 2:length(tvals)
       if ((st_fail == 0) & adaptive)
 
          % estimate error in current step
-	 err_step = max(WrmsNorm(Ynew - Y2, w), eps);
+	 err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
          
          % if error too high, flag step as a failure (will be be recomputed)
          if (err_step > ERRTOL*ONEPSM) 

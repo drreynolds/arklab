@@ -35,8 +35,11 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 %               y(t*) is a column vector of length m.
 %     nsteps = number of internal time steps taken by method
 %
-% Note: to run in fixed-step mode, call with hmin=hmax as the desired 
+% Note1: to run in fixed-step mode, call with hmin=hmax as the desired 
 % time step size.
+%
+% Note2: to disable checking the stability constraint, supply a
+% "StabFn" that just returns a large value, e.g., the full time interval.
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -79,9 +82,10 @@ a_fails = 0;   % total accuracy failures
 
 % set the solver parameters
 h_reduce = 0.1;          % failed step reduction factor 
-h_safety = 0.9;          % adaptivity safety factor
+h_safety = 0.96;         % adaptivity safety factor
 h_growth = 10;           % adaptivity growth bound
 h_stable = 0.5;          % fraction of stability step to take
+e_bias   = 1.5;          % error bias factor
 ONEMSM   = 1-sqrt(eps);  % coefficients to account for
 ONEPSM   = 1+sqrt(eps);  %   floating-point roundoff
 ERRTOL   = 1.1;          % upper bound on allowed step error
@@ -132,7 +136,7 @@ for tstep = 2:length(tvals)
       Fdata.t    = t;    % time of last successful step
 
       % set error-weight vector for this step
-      w = Ewt(Fdata);
+      ewt = Ewt(Fdata);
       
       % initialize data storage for multiple stages
       storage = Init(Y0,Fdata);
@@ -160,7 +164,7 @@ for tstep = 2:length(tvals)
       if (adaptive)
 
 	 % estimate error in current step
-	 err_step = max(WrmsNorm(Ynew - Y2, w), eps);
+	 err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
 	 
 	 % if error too high, flag step as a failure (will be recomputed)
          if (err_step > ERRTOL*ONEPSM) 
