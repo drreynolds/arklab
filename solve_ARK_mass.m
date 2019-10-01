@@ -87,14 +87,14 @@ end
 % extract ERK method information from Be
 [Brows, Bcols] = size(Be);
 ce = Be(1:s,1);         % stage time fraction array
-be = (Be(s+1,2:s+1))';  % solution weights (convert to column)
+be = Be(s+1,2:s+1)';    % solution weights (convert to column)
 Ae = Be(1:s,2:s+1);     % RK coefficients
 de = be;                % embedding coefficients (may be overwritten)
 
 % extract DIRK method information from Bi
 [Brows, Bcols] = size(Bi);
 ci = Bi(1:s,1);         % stage time fraction array
-bi = (Bi(s+1,2:s+1))';  % solution weights (convert to column)
+bi = Bi(s+1,2:s+1)';    % solution weights (convert to column)
 Ai = Bi(1:s,2:s+1);     % RK coefficients
 di = bi;                % embedding coefficients (may be overwritten)
 
@@ -202,7 +202,7 @@ lits   = 0;
 for tstep = 2:length(tvals)
 
    % loop over internal time steps to get to desired output time
-   while (t < tvals(tstep)*ONEMSM)
+   while ((t-tvals(tstep))*h < 0)
       
       % bound internal time step 
       h = max([h, hmin]);            % enforce minimum time step size
@@ -213,7 +213,7 @@ for tstep = 2:length(tvals)
       Fdata.h    = h;    % current step size
       Fdata.yold = Y0;   % solution from previous step
       Fdata.t    = t;    % time of last successful step
-      if (MTimeDep)      % current mass matrix (M\ used in Init below)
+      if (MTimeDep)      % current mass matrix (M^{-1} used in Init below)
          Fdata.M = Mn(t);
       end
 
@@ -388,9 +388,10 @@ if (Fdata.MTimeDep)
    %    r = Mi*(y_n + h*( sum_{j=1}^{i-1} Mj^{-1}*(aI(i,j)*fI(j)) + aE(i,j)*fE(j)))
    r = Fdata.yold;
    for j = 1:Fdata.stage-1
-      t = Fdata.t+Fdata.h*Fdata.ce(j);  % note that ci=ce is required 
-      r = r + Fdata.h*Fdata.Mn(t) \ ( Fdata.Ae(Fdata.stage,j)*Fdata.fe(t, z(:,j)) ...
-                                    + Fdata.Ai(Fdata.stage,j)*Fdata.fi(t, z(:,j)) );
+      t = Fdata.t+Fdata.h*Fdata.ce(j);  % note that ci=ce is required
+      Mj = Fdata.Mn(t);
+      r = r + Fdata.h * (Mj \ ( Fdata.Ae(Fdata.stage,j)*Fdata.fe(t, z(:,j)) ...
+                              + Fdata.Ai(Fdata.stage,j)*Fdata.fi(t, z(:,j)) ));
    end
    r = Fdata.M * r;
 else
@@ -401,8 +402,8 @@ else
    %    r = M*y_n + h*sum_{j=1}^{i-1} (aI(i,j)*fI_j + aE(i,j)*fE_j)
    r = Fdata.M*Fdata.yold;
    for j = 1:Fdata.stage-1
-      r = r + Fdata.h*Fdata.Ae(Fdata.stage,j)*Fdata.fe(Fdata.t+Fdata.h*Fdata.ce(j), z(:,j)) ...
-            + Fdata.h*Fdata.Ai(Fdata.stage,j)*Fdata.fi(Fdata.t+Fdata.h*Fdata.ci(j), z(:,j));
+      r = r + Fdata.h * ( Fdata.Ae(Fdata.stage,j)*Fdata.fe(Fdata.t+Fdata.h*Fdata.ce(j), z(:,j)) ...
+                        + Fdata.Ai(Fdata.stage,j)*Fdata.fi(Fdata.t+Fdata.h*Fdata.ci(j), z(:,j)) );
    end
 end
 end

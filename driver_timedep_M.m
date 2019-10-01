@@ -29,8 +29,8 @@ clear
 % set problem parameters
 T0 = -3;
 Tf = 7;
-tout = linspace(0,Tf,100);
-hvals = [0.05, 0.025, 0.01, 0.005, 0.0025, 0.001, 0.0005, 0.00025, 0.0001];
+tout = linspace(T0,Tf,101);
+hvals = [0.1, 0.05, 0.025, 0.01, 0.005, 0.0025, 0.001];
 rtol = 1e-3;
 atol = 1e-14*ones(2,1);
 lambda = -10;
@@ -38,18 +38,18 @@ Y0 = atan(T0);
 
 
 % set problem-defining functions
-fn = @(t,y) (1+t*t)*lambda*(y - atan(t)) + 1;
-fe = @(t,y) 1 - (1+t*t)*lambda*atan(t);
-fi = @(t,y) (1+t*t)*lambda*y;
-Jn = @(t,y) (1+t*t)*lambda;
-Ji = @(t,y) (1+t*t)*lambda;
-Es = @(t,y) 1/(1+t*t)/lambda;
-Mn = @(t)   1+t*t;
+Mn = @(t)   1+t.^2;
+fn = @(t,y) Mn(t)*lambda*(y - atan(t)) + 1;
+fe = @(t,y) 1 - Mn(t)*lambda*atan(t);
+fi = @(t,y) Mn(t)*lambda*y;
+Jn = @(t,y) Mn(t)*lambda;
+Ji = @(t,y) Mn(t)*lambda;
+Es = @(t,y) 1/Mn(t)/lambda;
 ytrue = @(t) atan(t);
 
 
 % perform tests with a diagonally-implicit RK method, algorithm 0
-mname = 'Kvaerno(7,4,5)-ESDIRK';
+mname = 'Kvaerno(5,3,4)-ESDIRK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with DIRK integrator, algorithm 0: %s (order = %i)\n',mname,B(s+1,1))
 errs_rms = zeros(size(hvals));
@@ -58,23 +58,23 @@ order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
    [t,Y,ns,nl] = solve_DIRK_mass(Mn, fn, Jn, tout, Y0, B, rtol, atol, hvals(ih), hvals(ih), 0);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % perform tests with a diagonally-implicit RK method, algorithm 1
-mname = 'Kvaerno(7,4,5)-ESDIRK';
+mname = 'Kvaerno(5,3,4)-ESDIRK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with DIRK integrator, algorithm 1: %s (order = %i)\n',mname,B(s+1,1))
 errs_rms = zeros(size(hvals));
@@ -83,19 +83,19 @@ order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
    [t,Y,ns,nl] = solve_DIRK_mass(Mn, fn, Jn, tout, Y0, B, rtol, atol, hvals(ih), hvals(ih), 1);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % run with an additive RK method, algorithm 0
@@ -109,20 +109,20 @@ errs_max = zeros(size(hvals));
 order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
-   [t,Y,ns,nl] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 0);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   [t,Y,ns,nl] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hvals(ih), hvals(ih), 0);
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % run with an additive RK method, algorithm 1
@@ -136,24 +136,24 @@ errs_max = zeros(size(hvals));
 order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
-   [t,Y,ns,nl] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 1);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   [t,Y,ns,nl] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hvals(ih), hvals(ih), 1);
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % run with an explicit RK method, algorithm 0
-mname = 'Butcher-9-7-ERK';
+mname = 'ERK-4-4';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with ERK integrator, algorithm 0: %s (order = %i)\n',mname,B(s+1,1))
 errs_rms = zeros(size(hvals));
@@ -161,24 +161,24 @@ errs_max = zeros(size(hvals));
 order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
-   [t,Y,ns] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hmin, hmax, 0);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   [t,Y,ns] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hvals(ih), hvals(ih), 0);
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-   fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+   fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % run with an explicit RK method, algorithm 1
-mname = 'Butcher-9-7-ERK';
+mname = 'ERK-4-4';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with ERK integrator, algorithm 1: %s (order = %i)\n',mname,B(s+1,1))
 errs_rms = zeros(size(hvals));
@@ -186,20 +186,20 @@ errs_max = zeros(size(hvals));
 order = zeros(length(hvals)-1,1);
 for ih = 1:length(hvals)
    fprintf('   h = %.5e,',hvals(ih));
-   [t,Y,ns] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hmin, hmax, 1);
-   errs_max(ih) = max(max(abs(Y'-ytrue(t))));
-   errs_rms(ih) = sqrt(sum(sum((Y'-ytrue(t)).^2))/numel(Y));
+   [t,Y,ns] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hvals(ih), hvals(ih), 1);
+   errs_max(ih) = max(max(abs(Y-ytrue(t))));
+   errs_rms(ih) = sqrt(sum(sum((Y-ytrue(t)).^2))/numel(Y));
    if (ih>1) 
-      order(ih) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
    end
    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-   fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+   fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
 end
 fprintf('Order of accuracy estimates (based on RMS errors above):\n')
 for ih = 2:length(hvals)
-   fprintf('  %g\n', order(ih-1) )
+   fprintf('  %g', order(ih-1) )
 end
-fprintf('Overall order of accuracy estimate = %g',sum(order)/length(order))
+fprintf('\nOverall order of accuracy estimate = %g\n\n',sum(order)/length(order))
 
 
 % end of script

@@ -73,14 +73,14 @@ end
 % extract ERK method information from Be
 [Brows, Bcols] = size(Be);
 ce = Be(1:s,1);         % stage time fraction array
-be = (Be(s+1,2:s+1))';  % solution weights (convert to column)
+be = Be(s+1,2:s+1)';    % solution weights (convert to column)
 Ae = Be(1:s,2:s+1);     % RK coefficients
 de = be;                % embedding coefficients (may be overwritten)
 
 % extract DIRK method information from Bi
 [Brows, Bcols] = size(Bi);
 ci = Bi(1:s,1);         % stage time fraction array
-bi = (Bi(s+1,2:s+1))';  % solution weights (convert to column)
+bi = Bi(s+1,2:s+1)';    % solution weights (convert to column)
 Ai = Bi(1:s,2:s+1);     % RK coefficients
 di = bi;                % embedding coefficients (may be overwritten)
 
@@ -175,7 +175,7 @@ lits   = 0;
 for tstep = 2:length(tvals)
 
    % loop over internal time steps to get to desired output time
-   while (t < tvals(tstep)*ONEMSM)
+   while ((t-tvals(tstep))*h < 0)
       
       % bound internal time step 
       h = max([h, hmin]);            % enforce minimum time step size

@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps] = solve_ERK_mass(M,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
-% usage: [tvals,Y,nsteps] = solve_ERK_mass(M,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+function [tvals,Y,nsteps] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+% usage: [tvals,Y,nsteps] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step explicit Runge-Kutta solver for the
 % vector-valued ODE problem 
@@ -7,7 +7,7 @@ function [tvals,Y,nsteps] = solve_ERK_mass(M,fcn,StabFn,tvals,Y0,B,rtol,atol,hmi
 %     Y(t0) = [y1(t0), y2(t0), ..., ym(t0)]'.
 %
 % Inputs:
-%     M      = matrix M, or function handle for M(t)
+%     Mn     = matrix M, or function handle for M(t)
 %     fcn    = function handle for F(t,Y)
 %     StabFn = function handle for stability constraint on F
 %     tvals  = [t0, t1, t2, ..., tN]
@@ -43,9 +43,9 @@ function [tvals,Y,nsteps] = solve_ERK_mass(M,fcn,StabFn,tvals,Y0,B,rtol,atol,hmi
 % time step size.
 %
 % Note2: to indicate that the mass matrix _does_not_ depent on time,
-% i.e., M ~= M(t), the input "M" should be a standard
+% i.e., M ~= M(t), the input "Mn" should be a standard
 % double-precision matrix.  To indicate that the mass matrix _does_
-% depend on time, the input "M" should be a function handle (that
+% depend on time, the input "Mn" should be a function handle (that
 % when called with a scalar-valued "t" returns a standard
 % double-precision matrix).
 %
@@ -66,7 +66,7 @@ end
 
 % set flag based on type of M input
 MTimeDep = 1;
-if (isa(M,'double'))
+if (isa(Mn,'double'))
    MTimeDep = 0;
 end
 
@@ -119,7 +119,12 @@ Ynew = Y0;
 
 % create Fdata structure for evaluating solution
 Fdata.MTimeDep = MTimeDep;  % time-depencence of mass matrix
-Fdata.M = M;                % mass matrix (or function handle)
+if (MTimeDep)               % mass matrix
+   Fdata.M  = Mn(t);
+   Fdata.Mn = Mn;
+else
+   Fdata.M  = Mn;
+end
 Fdata.f = fcn;              % ODE RHS function name
 Fdata.A = A;                % Butcher tables
 Fdata.c = c;
@@ -154,7 +159,7 @@ nsteps = 0;
 for tstep = 2:length(tvals)
 
    % loop over internal time steps to get to desired output time
-   while (t < tvals(tstep)*ONEMSM)
+   while ((t-tvals(tstep))*h < 0)
       
       % bound internal time step 
       h = max([h, hmin]);            % enforce minimum time step size
@@ -304,7 +309,7 @@ Znew = Fdata.yold;
 for j = 1:Fdata.stage-1
    t = Fdata.t+Fdata.h*Fdata.c(j);
    if (Fdata.MTimeDep)
-      M = Fdata.M(t);
+      M = Fdata.Mn(t);
    end
    Znew = Znew + Fdata.h*Fdata.A(Fdata.stage,j)*(M\Fdata.f(t, z(:,j)));
 end
@@ -331,7 +336,7 @@ f = zeros(size(z,1),Fdata.s);
 for is=1:Fdata.s
    t = Fdata.t + Fdata.h*Fdata.c(is);
    if (Fdata.MTimeDep)
-      M = Fdata.M(t);
+      M = Fdata.Mn(t);
    end
    f(:,is) = M\Fdata.f(t, z(:,is));
 end
@@ -381,7 +386,7 @@ t = Fdata.t+Fdata.h*Fdata.c(Fdata.stage);
 if (~Fdata.MTimeDep) 
    M = Fdata.M;
 else
-   M = Fdata.M(t);
+   M = Fdata.Mn(t);
 end
 Knew = M \ Fdata.f(t, z);
 end

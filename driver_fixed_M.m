@@ -35,6 +35,8 @@ w0 = 3;
 Y0 = [u0; v0; w0];
 
 % set problem-defining functions
+rng('default');   % reset random number generator
+rng(1);
 M = 20*rand(3,3);
 fref = @(t,y) [a - (y(3)+1)*y(1) + y(1)*y(1)*y(2); y(3)*y(1) - y(1)*y(1)*y(2); (b-y(3))/ep - y(3)*y(1)];
 fn = @(t,y) M*[a - (y(3)+1)*y(1) + y(1)*y(1)*y(2); y(3)*y(1) - y(1)*y(1)*y(2); (b-y(3))/ep - y(3)*y(1)];
