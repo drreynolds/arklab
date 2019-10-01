@@ -388,7 +388,7 @@ if (Fdata.MTimeDep)
    %    r = Mi*(y_n + h*( sum_{j=1}^{i-1} Mj^{-1}*(aI(i,j)*fI(j)) + aE(i,j)*fE(j)))
    r = Fdata.yold;
    for j = 1:Fdata.stage-1
-      t = Fdata.t+Fdata.h*Fdata.c(j);  % note that ci=ce is required 
+      t = Fdata.t+Fdata.h*Fdata.ce(j);  % note that ci=ce is required 
       r = r + Fdata.h*Fdata.Mn(t) \ ( Fdata.Ae(Fdata.stage,j)*Fdata.fe(t, z(:,j)) ...
                                     + Fdata.Ai(Fdata.stage,j)*Fdata.fi(t, z(:,j)) );
    end
@@ -461,7 +461,7 @@ end
 for is=1:Fdata.s
    if (Fdata.MTimeDep)
       t = Fdata.t + Fdata.h*Fdata.ce(is);  % note: ce=ci is required
-      Mj = Fdata.mn(t);
+      Mj = Fdata.Mn(t);
       fe(:,is) = Mj \ Fdata.fe(t, z(:,is));
       fi(:,is) = Mj \ Fdata.fi(t, z(:,is));
    else
