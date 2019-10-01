@@ -87,8 +87,8 @@ a_fails = 0;   % total accuracy failures
 
 % set the solver parameters
 newt_maxit = 20;           % max number of Newton iterations
-newt_ftol  = 1e-10;        % Newton solver residual tolerance
-newt_stol  = 1e-10;        % Newton solver solution tolerance
+newt_rtol  = rtol/10;      % Newton solver relative tolerance
+newt_atol  = atol/10;      % Newton solver absolute tolerance
 h_reduce   = 0.1;          % failed step reduction factor 
 h_safety   = 0.9;          % adaptivity safety factor
 h_growth   = 10;           % adaptivity growth bound
@@ -168,17 +168,17 @@ for tstep = 2:length(tvals)
 
          % set nonlinear solver tolerances based on 'alg' type
          if (alg == 1) 
-            ftol = newt_ftol / h;
-            stol = newt_stol / h;
+            n_rtol = newt_rtol / h;
+            n_atol = newt_atol / h;
          else
-            ftol = newt_ftol;
-            stol = newt_stol;
+            n_rtol = newt_rtol;
+            n_atol = newt_atol;
          end         
          
          % set Newton initial guess, call Newton solver, and
          % increment linear solver statistics
          NewtGuess = Guess(NewtSol, Fdata, storage);
-         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, ftol, stol, newt_maxit);
+         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, n_rtol, n_atol, newt_maxit);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics

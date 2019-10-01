@@ -1,5 +1,5 @@
-function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, ftol, stol, maxit)
-% usage: [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, ftol, stol, maxit)
+function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, rtol, atol, maxit)
+% usage: [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, rtol, atol, maxit)
 %
 % Newton solver for the root-finding problem defined by the function Fcn,
 %     F(y,Fdata) = 0
@@ -13,12 +13,17 @@ function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, ftol, stol, maxit)
 %                as F.
 %          y0 = initial guess
 %          Fdata = structure containing extra information for evaluating F.
-%          ftol = desired nonlinear residual tolerance, ||F(y)|| < ftol
-%          stol = desired solution tolerance, ||s|| < stol
+%          rtol = desired relative solution tolerance
+%          atol = desired absolute solution tolerance
 %          maxit = maximum allowed iterations
 % Outputs: y = solution to root-finding problem
 %          lits = total # of linear solves taken
 %          ierr = output flag denoting success (0) or failure (1)
+%
+% Note: we use the inputs rtol and atol to define a weighted
+% root-mean squared norm to measure solution convergence:
+%     ||err|| := sqrt(1/n * sum_{i=1}^n( (err(i)*w(i))^2 ))
+% where  w = 1./(rtol*|y0| + atol).
 %
 % Daniel R. Reynolds
 % Department of Mathematics
@@ -30,12 +35,19 @@ function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, ftol, stol, maxit)
 if (maxit < 1) 
    error('newton error: requires at least 1 iteration (maxit)');
 end
-if (stol <= 0) 
-   error('newton error: tolerance must be positive (stol)');
+if (rtol < 0) 
+   error('newton error: relative tolerance must be non-negative (rtol)');
 end
-if (ftol <= 0) 
-   error('newton error: tolerance must be positive (ftol)');
+if (atol < 0) 
+   error('newton error: absolute tolerance must be non-negative (atol)');
 end
+if ((rtol == 0) && (atol == 0))
+   error('newton error: at least one tolerance must be positive (rtol,atol)');
+end
+
+% set function to measure convergence (want value <1)
+w = 1./(rtol*abs(y0)+atol);
+wrmsnorm = @(x) sqrt(sum((x.*w).^2)/length(x));
 
 % initialize result, increment vector, residual, statistics
 y = y0;
@@ -49,7 +61,7 @@ for i=1:maxit
    F = Fcn(y,Fdata);
 
    % check residual and increment for stopping
-   if ((norm(s,inf) < stol) | (norm(F,inf) < ftol))
+   if (wrmsnorm(s) < 1)
       ierr = 0;
       return
    end
