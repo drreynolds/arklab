@@ -8,7 +8,7 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 %
 % Inputs:
 %     fcn    = function handle for F(t,Y)
-%     Jfcn   = function handle for Jacobian of F, J(t,Y)%
+%     Jfcn   = function handle for Jacobian of F, J(t,Y)
 %     tvals  = [t0, t1, t2, ..., tN]
 %     Y0     = initial value array (column vector of length m)
 %     B      = Butcher matrix for IRK coefficients, of the form
@@ -40,12 +40,12 @@ function [tvals,Y,nsteps,lits] = solve_DIRK(fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,h
 %     lits   = number of linear solves required by method
 %
 % Note: to run in fixed-step mode, call with hmin=hmax as the desired 
-% time step size, and set the tolerances to large positive numbers.
+% time step size.
 %
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% March 2017
+% October 2019
 % All Rights Reserved
 
 
@@ -54,25 +54,26 @@ if ~exist('alg','var')
    alg = 0;
 end
 
-% extract DIRK method information from B
+% extract Butcher table
 [Brows, Bcols] = size(B);
 s = Bcols - 1;        % number of stages
 c = B(1:s,1);         % stage time fraction array
-b = (B(s+1,2:s+1))';  % solution weights (convert to column)
+b = B(s+1,2:s+1)';    % solution weights (convert to column)
 A = B(1:s,2:s+1);     % RK coefficients
-q = B(s+1,1);         % method order
+d = b;                % embedding coefficients (may be overwritten)
 
-% initialize as non-embedded, until proven otherwise
-embedded = 0;
-p = 0;
-if (Brows > Bcols)
-   if (max(abs(B(s+2,2:s+1))) > eps)
-      embedded = 1;
-      d = (B(s+2,2:s+1))';
-      p = B(s+2,1);
+% if adaptivity desired, check for embedding coefficients and set the
+% order of accuracy accordingly
+p = B(Bcols,1);
+adaptive = 0;
+if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is desired
+   if (Brows > Bcols)
+      if (max(abs(B(Bcols+1,2:Bcols))) > eps)   % check for embedding coeffs
+         adaptive = 1;
+         p = B(Bcols+1,1);
+         d = B(Bcols+1,2:end)';
+      end
    end
-else
-   d = b;
 end
 
 % initialize output arrays
@@ -201,7 +202,7 @@ for tstep = 2:length(tvals)
       [Ynew,Y2] = Sol(storage,Fdata);
 
       % if stages succeeded and time step adaptivity enabled, check step accuracy
-      if ((st_fail == 0) & embedded)
+      if ((st_fail == 0) && adaptive)
 
          % estimate error in current step
          err_step = max(norm((Ynew - Y2)./(rtol*Ynew + atol),inf), eps);
@@ -221,14 +222,14 @@ for tstep = 2:length(tvals)
          Y0 = Ynew;
          t  = t + h;
          
-         % for embedded methods, use error estimate to adapt the time step
-         if (embedded) 
+         % for adaptive methods, use error estimate to adapt the time step
+         if (adaptive)
 
             h_old = h;
             if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
             else                     % set next h (I-controller)
-               h = h_safety * h_old * err_step^(-1.0/q);
+               h = h_safety * h_old * err_step^(-1.0/p);
             end
 
             % enforce maximum growth rate on step sizes
@@ -244,9 +245,7 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            fprintf('Cannot achieve desired accuracy.\n');
-            fprintf('Consider reducing hmin or increasing rtol.\n');
-            return
+            error('Cannot achieve desired accuracy.\n  Consider reducing hmin or increasing rtol.\n');
          end
 
          % otherwise, reset guess, reduce time step, retry solve
@@ -267,7 +266,7 @@ end
 
 
 
-%======= Auxiliary routines when solving for ARK _stages_ =======%
+%======= Auxiliary routines when solving for DIRK _stages_ =======%
 
 
 
@@ -347,7 +346,7 @@ function Amat = Jres_z(z, Fdata)
 % Outputs: Amat = Jacobian at current guess
 %
 % This function computes the Jacobian of each intermediate stage residual
-% for a multi-stage ARK method, through calling the user-supplied (in
+% for a multi-stage DIRK method, through calling the user-supplied (in
 % Fdata) ODE Jacobian function. 
 
 Amat = eye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.J(Fdata.tcur, z);
@@ -382,7 +381,7 @@ end
 
 
 
-%======= Auxiliary routines when solving for ARK _RHS_ =======%
+%======= Auxiliary routines when solving for DIRK _RHS_ =======%
 
 
 
@@ -457,7 +456,7 @@ function Amat = Jres_k(k, Fdata)
 % Outputs: Amat = Jacobian at current guess
 %
 % This function computes the Jacobian of each intermediate stage residual
-% for a multi-stage ARK method, through calling the user-supplied (in
+% for a multi-stage DIRK method, through calling the user-supplied (in
 % Fdata) ODE Jacobian function. 
 
 Aii = Fdata.A(Fdata.stage,Fdata.stage);

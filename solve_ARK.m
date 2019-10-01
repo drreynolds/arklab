@@ -43,12 +43,12 @@ function [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
 %     lits   = number of linear solves required by method
 %
 % Note: to run in fixed-step mode, call with hmin=hmax as the desired 
-% time step size, and set the tolerances to large positive numbers.
+% time step size.
 %
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% March 2017
+% October 2019
 % All Rights Reserved
 
 % handle optional 'alg' input
@@ -75,27 +75,29 @@ end
 ce = Be(1:s,1);         % stage time fraction array
 be = (Be(s+1,2:s+1))';  % solution weights (convert to column)
 Ae = Be(1:s,2:s+1);     % RK coefficients
-q  = Be(s+1,1);         % method order
+de = be;                % embedding coefficients (may be overwritten)
 
 % extract DIRK method information from Bi
 [Brows, Bcols] = size(Bi);
 ci = Bi(1:s,1);         % stage time fraction array
 bi = (Bi(s+1,2:s+1))';  % solution weights (convert to column)
 Ai = Bi(1:s,2:s+1);     % RK coefficients
+di = bi;                % embedding coefficients (may be overwritten)
 
-% initialize as non-embedded, until proven otherwise
-embedded = 0;
-p = 0;
-if (Brows > Bcols)
-   if ((max(abs(Be(s+2,2:s+1))) > eps) && (max(abs(Bi(s+2,2:s+1))) > eps))
-      embedded = 1;
-      de = (Be(s+2,2:s+1))';
-      di = (Bi(s+2,2:s+1))';
-      p = Be(s+2,1);
+% if adaptivity desired, check for embedding coefficients and set the
+% order of accuracy accordingly
+p = Be(s+1,1);
+adaptive = 0;
+if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is desired
+   if (Brows > Bcols)
+      if ( (max(abs(Be(s+2,2:s+1))) > eps) && ...
+           (max(abs(Bi(s+2,2:s+1))) > eps) ) % check for embedding coeffs
+         adaptive = 1;
+         p = Be(s+2,1);
+         de = (Be(s+2,2:s+1))';
+         di = (Bi(s+2,2:s+1))';
+      end
    end
-else
-   de = be;
-   di = bi;
 end
 
 % initialize output arrays
@@ -229,7 +231,7 @@ for tstep = 2:length(tvals)
       [Ynew,Y2] = Sol(storage,Fdata);
 
       % if stages succeeded and time step adaptivity enabled, check step accuracy
-      if ((st_fail == 0) & embedded)
+      if ((st_fail == 0) & adaptive)
 
          % estimate error in current step
          err_step = max(norm((Ynew - Y2)./(rtol*Ynew + atol),inf), eps);
@@ -250,13 +252,13 @@ for tstep = 2:length(tvals)
          t  = t + h;
          
          % for embedded methods, use error estimate to adapt the time step
-         if (embedded) 
+         if (adaptive) 
 
             h_old = h;
             if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
             else                     % set next h (I-controller)
-               h = h_safety * h_old * err_step^(-1.0/q);
+               h = h_safety * h_old * err_step^(-1.0/p);
             end
 
             % enforce maximum growth rate on step sizes
@@ -272,9 +274,7 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            fprintf('Cannot achieve desired accuracy.\n');
-            fprintf('Consider reducing hmin or increasing rtol.\n');
-            return
+            error('Cannot achieve desired accuracy.\n  Consider reducing hmin or increasing rtol.\n');
          end
 
          % otherwise, reset guess, reduce time step, retry solve
