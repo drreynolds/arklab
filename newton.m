@@ -1,15 +1,15 @@
-function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, rtol, atol, maxit)
-% usage: [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, rtol, atol, maxit)
+function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, rtol, atol, maxit)
+% usage: [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, rtol, atol, maxit)
 %
-% Newton solver for the root-finding problem defined by the function Fcn,
-%     F(y,Fdata) = 0
+% Newton solver for the root-finding problem defined by the function Fres,
+%     Fres(y,Fdata) = 0
 %
-% Inputs:  Fcn = function name for nonlinear residual, F(y,Fdata).  Note, all 
+% Inputs:  Fres = function name for nonlinear residual, F(y,Fdata).  Note, all 
 %                data required to evaluate F (other than y) should be stored
 %                in the data structure Fdata.
-%          Afn = function name for Jacobian of nonlinear residual, 
+%          Jres = function name for Jacobian of nonlinear residual, 
 %                A = partial_y F(y,Fdata).  
-%                Afn should use the same data structure for additional data
+%                Jres should use the same data structure for additional data
 %                as F.
 %          y0 = initial guess
 %          Fdata = structure containing extra information for evaluating F.
@@ -28,7 +28,7 @@ function [y,lits,ierr] = newton(Fcn, Afn, y0, Fdata, rtol, atol, maxit)
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% March 2017
+% October 2019
 % All Rights Reserved
 
 % check solver inputs
@@ -58,7 +58,7 @@ lits = 0;
 for i=1:maxit
 
    % compute residual at current guess
-   F = Fcn(y,Fdata);
+   F = Fres(y,Fdata);
 
    % check residual and increment for stopping
    if (wrmsnorm(s) < 1)
@@ -67,7 +67,7 @@ for i=1:maxit
    end
    
    % compute Jacobian
-   A = Afn(y,Fdata);
+   A = Jres(y,Fdata);
    
    % perform Newton update
    s = A\F;
@@ -78,6 +78,6 @@ end
 
 % if we've made it to this point, the Newton iteration did not converge
 ierr = 1;
-%fprintf('\nnewton warning: nonconvergence after %i iterations (|F| = %g)\n',maxit,norm(F,inf));
+fprintf('\nnewton warning: nonconvergence after %i iterations (|F| = %g)\n',maxit,norm(F,inf));
 
 % end of function
