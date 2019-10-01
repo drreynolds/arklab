@@ -91,11 +91,11 @@ adaptive = 0;
 if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is desired
    if (Brows > Bcols)
       if ( (max(abs(Be(s+2,2:s+1))) > eps) && ...
-           (max(abs(Bi(s+2,2:s+1))) > eps) ) % check for embedding coeffs
+           (max(abs(Bi(s+2,2:s+1))) > eps) )    % check embedding coeffs
          adaptive = 1;
          p = Be(s+2,1);
-         de = (Be(s+2,2:s+1))';
-         di = (Bi(s+2,2:s+1))';
+         de = Be(s+2,2:s+1)';
+         di = Bi(s+2,2:s+1)';
       end
    end
 end
@@ -159,6 +159,10 @@ else
    Store = @Store_z;  % stores per-stage results
 end
 
+% set functions to compute error weight vector and measure temporal convergence
+Ewt = @(Fdata) 1./(rtol*abs(Fdata.yold)+atol);
+WrmsNorm = @(x,w) sqrt(sum((x.*w).^2)/length(x));
+
 % set initial time step size
 h = hmin;
 
@@ -181,6 +185,9 @@ for tstep = 2:length(tvals)
       Fdata.h    = h;    % current step size
       Fdata.yold = Y0;   % solution from previous step
       Fdata.t    = t;    % time of last successful step
+
+      % set error-weight vector for this step
+      w = Ewt(Fdata);
 
       % initialize data storage for multiple stages
       [storage,NewtSol] = Init(Y0,Fdata);
@@ -234,7 +241,7 @@ for tstep = 2:length(tvals)
       if ((st_fail == 0) & adaptive)
 
          % estimate error in current step
-         err_step = max(norm((Ynew - Y2)./(rtol*Ynew + atol),inf), eps);
+	 err_step = max(WrmsNorm(Ynew - Y2, w), eps);
          
          % if error too high, flag step as a failure (will be be recomputed)
          if (err_step > ERRTOL*ONEPSM) 

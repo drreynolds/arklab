@@ -36,12 +36,12 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 %     nsteps = number of internal time steps taken by method
 %
 % Note: to run in fixed-step mode, call with hmin=hmax as the desired 
-% time step size, and set the tolerances to large positive numbers.
+% time step size.
 %
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% March 2017
+% October 2019
 % All Rights Reserved
 
    
@@ -49,21 +49,21 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 [Brows, Bcols] = size(B);
 s = Bcols - 1;        % number of stages
 c = B(1:s,1);         % stage time fraction array
-b = (B(s+1,2:s+1))';  % solution weights (convert to column)
+b = B(s+1,2:s+1)';    % solution weights (convert to column)
 A = B(1:s,2:s+1);     % RK coefficients
-q = B(s+1,1);         % method order
+d = b;                % embedding coefficients (may be overwritten)
 
 % initialize as non-embedded, until proven otherwise
-embedded = 0;
-p = 0;
-if (Brows > Bcols)
-   if (max(abs(B(s+2,2:s+1))) > eps)
-      embedded = 1;
-      d = (B(s+2,2:s+1))';
-      p = B(s+2,1);
+p = B(s+1,1);
+adaptive = 0;
+if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is desired
+   if (Brows > Bcols)
+      if (max(abs(B(s+2,2:s+1))) > eps)         % check embedding coeffs
+         adaptive = 1;
+         p = B(s+2,1);
+         d = B(s+2,2:s+1)';
+      end
    end
-else
-   d = b;
 end
 
 % initialize output arrays
@@ -85,7 +85,7 @@ h_stable = 0.5;          % fraction of stability step to take
 ONEMSM   = 1-sqrt(eps);  % coefficients to account for
 ONEPSM   = 1+sqrt(eps);  %   floating-point roundoff
 ERRTOL   = 1.1;          % upper bound on allowed step error
-                           %   (in WRMS norm)
+                         %   (in WRMS norm)
 
 % initialize temporary variables
 t = tvals(1);
@@ -104,6 +104,10 @@ Init  = @Init_z;   % initializes solution storage
 Sol   = @Sol_z;    % time-evolved solution
 Store = @Store_z;  % stores per-stage results
 Calc  = @Calc_z;   % computes new stage using known data
+
+% set functions to compute error weight vector and measure temporal convergence
+Ewt = @(Fdata) 1./(rtol*abs(Fdata.yold)+atol);
+WrmsNorm = @(x,w) sqrt(sum((x.*w).^2)/length(x));
 
 % set initial time step size
 h = hmin;
@@ -127,6 +131,9 @@ for tstep = 2:length(tvals)
       Fdata.yold = Y0;   % solution from previous step
       Fdata.t    = t;    % time of last successful step
 
+      % set error-weight vector for this step
+      w = Ewt(Fdata);
+      
       % initialize data storage for multiple stages
       storage = Init(Y0,Fdata);
 
@@ -150,10 +157,10 @@ for tstep = 2:length(tvals)
       [Ynew,Y2] = Sol(storage,Fdata);
       
       % if time step adaptivity enabled, check step accuracy
-      if (embedded)
+      if (adaptive)
 
 	 % estimate error in current step
-	 err_step = max(norm((Ynew - Y2)./(rtol*Ynew + atol),inf), eps);
+	 err_step = max(WrmsNorm(Ynew - Y2, w), eps);
 	 
 	 % if error too high, flag step as a failure (will be recomputed)
          if (err_step > ERRTOL*ONEPSM) 
@@ -171,13 +178,13 @@ for tstep = 2:length(tvals)
 	 t  = t + h;
       
          % for embedded methods, use error estimate to adapt the time step
-	 if (embedded) 
+	 if (adaptive) 
             
 	    h_old = h;
 	    if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
 	    else                     % set next h (I-controller)
-	       h = h_safety * h_old * err_step^(-1.0/q);
+	       h = h_safety * h_old * err_step^(-1.0/p);
 	    end
 
             % enforce maximum growth rate on step sizes
@@ -204,9 +211,7 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            fprintf('Cannot achieve desired accuracy.\n');
-            fprintf('Consider reducing hmin or increasing rtol.\n');
-            return
+            error('Cannot achieve desired accuracy.\nConsider reducing hmin or increasing rtol.');
          end
 
          % otherwise, reset guess, reduce time step, retry solve
