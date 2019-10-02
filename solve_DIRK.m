@@ -213,7 +213,7 @@ for tstep = 2:length(tvals)
       if ((st_fail == 0) && adaptive)
 
          % estimate error in current step
-	 err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
+         err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
          
          % if error too high, flag step as a failure (will be be recomputed)
          if (err_step > ERRTOL*ONEPSM) 

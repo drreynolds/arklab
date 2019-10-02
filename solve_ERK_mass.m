@@ -182,12 +182,12 @@ for tstep = 2:length(tvals)
       
       % loop over stages
       for stage=1:s
-	 
+         
          % Compute new stage, and store appropriately
          Fdata.stage = stage;
          Znew = Calc(storage, Fdata);
          storage = Store(Znew, Fdata, storage);
-	 
+         
       end
 
       % increment number of internal time steps taken
@@ -199,53 +199,53 @@ for tstep = 2:length(tvals)
       % if time step adaptivity enabled, check step accuracy
       if (adaptive)
 
-	 % estimate error in current step
-	 err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
-	 
-	 % if error too high, flag step as a failure (will be recomputed)
+         % estimate error in current step
+         err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
+         
+         % if error too high, flag step as a failure (will be recomputed)
          if (err_step > ERRTOL*ONEPSM) 
-	    a_fails = a_fails + 1;
-	    st_fail = 1;
-	 end
-	 
+            a_fails = a_fails + 1;
+            st_fail = 1;
+         end
+         
       end
       
       % if step was successful (i.e. error acceptable)
       if (st_fail == 0) 
       
          % update solution and time for last successful step
-	 Y0 = Ynew;
-	 t  = t + h;
+         Y0 = Ynew;
+         t  = t + h;
       
          % for embedded methods, use error estimate to adapt the time step
-	 if (adaptive) 
+         if (adaptive) 
             
-	    h_old = h;
-	    if (err_step == 0.0)     % no error, set max possible
+            h_old = h;
+            if (err_step == 0.0)     % no error, set max possible
                h = tvals(end)-t;
-	    else                     % set next h (I-controller)
-	       h = h_safety * h_old * err_step^(-1.0/p);
-	    end
+            else                     % set next h (I-controller)
+               h = h_safety * h_old * err_step^(-1.0/p);
+            end
 
             % enforce maximum growth rate on step sizes
-	    h = min(h_growth*h_old, h);
-            
-	 % otherwise, just use the fixed minimum input step size
-	 else
-	    h = hmin;
-	 end
-	 
-	 % limit time step by explicit stability condition
-	 hstab = h_stable * StabFn(t, Ynew);
+            h = min(h_growth*h_old, h);
+           
+         % otherwise, just use the fixed minimum input step size
+         else
+            h = hmin;
+         end
+         
+         % limit time step by explicit stability condition
+         hstab = h_stable * StabFn(t, Ynew);
 
          % keep statistics on how many steps are accuracy vs stability limited
-	 if (h < hstab)
-	    h_a = h_a + 1;
-	 else
-	    h_s = h_s + 1;
-	 end
-	 h = min([h, hstab]);
-	 
+         if (h < hstab)
+            h_a = h_a + 1;
+         else
+            h_s = h_s + 1;
+         end
+         h = min([h, hstab]);
+         
       % if error test failed
       else
 
@@ -255,10 +255,10 @@ for tstep = 2:length(tvals)
          end
 
          % otherwise, reset guess, reduce time step, retry solve
-	 Ynew = Y0;
-	 h    = h * h_reduce;
-	 h_a  = h_a + 1;
-	 
+         Ynew = Y0;
+         h    = h * h_reduce;
+         h_a  = h_a + 1;
+         
       end  % end logic tests for step success/failure
       
    end  % end while loop attempting to solve steps to next output time
