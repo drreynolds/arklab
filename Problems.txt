@@ -23,3 +23,29 @@ p3. Brusselator PDE test (1D)
    u(x,0) = a + 0.1*sin(pi*x), v(x,0) = b/a + 0.1*sin(pi*x), and
    boundary conditions are homogeneous Dirichlet.  We use a mesh with
    500 spatial zones.
+
+
+
+Other test problems that exercise specific functionalities:
+
+* driver_fixed_M -- this runs the Brusselator ODE test above, but
+  where the system is modified to include a fixed, random 3x3 mass
+  matrix, i.e., if p2 above may be written as
+      y' = f(y)
+  then we create M = 20*rand(3,3) and convert this problem to
+      M*y' = M*f(y)
+  This driver is used to test how well the mass-matrix-enabled solvers
+  (solve_ERK_mass.m, solve_DIRK_mass.m, and solve_ARK_mass.m) handle
+  problems with non-time-dependent mass matrices.
+
+* driver_timedep_M -- this runs a simple test problem with analytical
+  solution, 
+      M(t) dy/dt = (1+t^2)*lamda*(y-atan(t)) + 1, -3<t<7
+      y(0) = atan(-3)
+  where we use the simple mass matrix:
+      M(t) = 1+t^2
+  This has analytical solution:
+      y(t) = atan(t).
+  This driver is used to test how well the mass-matrix-enabled solvers
+  (solve_ERK_mass.m, solve_DIRK_mass.m, and solve_ARK_mass.m) handle
+  problems with time-dependent mass matrices.

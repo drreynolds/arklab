@@ -14,19 +14,13 @@ number of Butcher tables (over 70), holding the coefficients for
 existing methods in each of these three categories.
 
 For these methods, time step adaptivity is enabled for methods
-with embeddings (most of the included methods have embeddings). 
-All three classes of methods may be run in so-called "fixed-step mode", 
-wherein the solver will take steps of a user-supplied magnitude.  This 
-mode is currently required for all methods without embeddings.
+with embeddings.  All three classes of methods may be run in so-called
+"fixed-step mode", wherein the solver will take steps of a
+user-supplied magnitude.  This mode is currently required for all
+methods without embeddings.
 
-In addition to these sets of solvers, we provide three example
-problems that may be used to test different methods, and that may be
-used as a template for creating new problems.  These test problems
-include:
-(a) a non-stiff variant of the Van der Pol oscillator (two-component
-    nonlinear ODE system). 
-(b) a stiff Brusselator problem (three-component nonlinear ODE
-    system), and
-(c) a PDE variant of the Brusselator problem (two-component nonlinear
-    PDE system).
+In addition to these sets of solvers, we provide a set of simple
+example problems that may be used to test different methods, and that
+may be used as a template for creating new problems.  These test problems
+are described in the accompanying file, 'Problems.txt'.
 
