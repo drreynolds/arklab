@@ -233,10 +233,10 @@ for tstep = 2:length(tvals)
          % Update Fdata structure for current stage
          Fdata.tcur = t + h*ci(stage);     % 'time' for current [implicit] stage
          Fdata.stage = stage;              % current stage index
-         Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
          if (MTimeDep)                     % current mass matrix
             Fdata.M = Mn(Fdata.tcur);
          end
+         Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
          
          % set nonlinear solver tolerances based on 'alg' type
          if (alg == 1) 
@@ -460,18 +460,14 @@ if (~Fdata.MTimeDep)
    M = Fdata.M;
 end
 for is=1:Fdata.s
+   t = Fdata.t + Fdata.h*Fdata.ce(is);
    if (Fdata.MTimeDep)
-      t = Fdata.t + Fdata.h*Fdata.ce(is);  % note: ce=ci is required
-      Mj = Fdata.Mn(t);
-      fe(:,is) = Mj \ Fdata.fe(t, z(:,is));
-      fi(:,is) = Mj \ Fdata.fi(t, z(:,is));
-   else
-      t = Fdata.t + Fdata.h*Fdata.ce(is);
-      fe(:,is) = Fdata.M \ Fdata.fe(t, z(:,is));
-      
-      t = Fdata.t + Fdata.h*Fdata.ci(is);
-      fi(:,is) = Fdata.M \ Fdata.fi(t, z(:,is));
+      M = Fdata.Mn(t);
    end
+   fe(:,is) = M \ Fdata.fe(t, z(:,is));
+      
+   t = Fdata.t + Fdata.h*Fdata.ci(is);
+   fi(:,is) = M \ Fdata.fi(t, z(:,is));
 end
 
 % form the solutions

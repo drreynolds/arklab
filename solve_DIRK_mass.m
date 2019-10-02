@@ -199,10 +199,10 @@ for tstep = 2:length(tvals)
          % Update Fdata structure for current stage
          Fdata.tcur = t + h*c(stage);      % 'time' for current stage
          Fdata.stage = stage;              % current stage index
-         Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
          if (MTimeDep)                     % current mass matrix
             Fdata.M = Mn(Fdata.tcur);
          end
+         Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
          
          % set nonlinear solver tolerances based on 'alg' type
          if (alg == 1) 
