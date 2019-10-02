@@ -44,7 +44,7 @@ fe = @(t,y) 1 - Mn(t)*lambda*atan(t);
 fi = @(t,y) Mn(t)*lambda*y;
 Jn = @(t,y) Mn(t)*lambda;
 Ji = @(t,y) Mn(t)*lambda;
-Es = @(t,y) 1/Mn(t)/lambda;
+Es = @(t,y) 1/Mn(t)/abs(lambda);
 ytrue = @(t) atan(t);
 
 
