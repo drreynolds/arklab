@@ -1,5 +1,5 @@
-function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit)
-% usage: [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit)
+function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
+% usage: [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
 %
 % Newton solver for the root-finding problem defined by the function Fres,
 %     Fres(y,Fdata) = 0
@@ -15,6 +15,10 @@ function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit)
 %          Fdata = structure containing extra information for evaluating F.
 %          ewt = error-weight vector for measuring nonlinear convergence
 %          maxit = maximum allowed iterations
+%          outlevel = (optional) desired diagnostic output level:
+%                0 -> no diagnostic output (only error messages)  [default]
+%                1 -> non-convergence warning only
+%                2 -> full iteration history
 % Outputs: y = solution to root-finding problem
 %          lits = total # of linear solves taken
 %          ierr = output flag denoting success (0) or failure (1)
@@ -42,6 +46,12 @@ if (min(ewt) <= 0)
    error('newton error: illegal error weight vector (all entries must be positive)');
 end
 
+% handle optional 'outlevel' input
+if ~exist('outlevel','var')
+   outlevel = 0;
+end
+
+
 % set function to measure convergence (want value <1)
 WrmsNorm = @(x) sqrt(sum((x.*ewt).^2)/length(x));
 
@@ -59,9 +69,17 @@ for i=1:maxit
    % check residual and increment for stopping
    if (WrmsNorm(s) < 1)
       ierr = 0;
+      if (outlevel > 1)
+         fprintf('newton convergence after %i iterations (||s|| = %g)\n',i-1,WrmsNorm(s));
+      end
       return
    end
-   
+
+   % diagnostic output
+   if (outlevel > 1)
+      fprintf('newton iteration %i, ||s|| = %g\n',i,WrmsNorm(s));
+   end
+      
    % compute Jacobian
    A = Jres(y,Fdata);
    
@@ -74,6 +92,8 @@ end
 
 % if we've made it to this point, the Newton iteration did not converge
 ierr = 1;
-fprintf('\nnewton warning: nonconvergence after %i iterations (|F| = %g)\n',maxit,norm(F,inf));
+if (outlevel > 0)
+   fprintf('\nnewton warning: nonconvergence after %i iterations (|F| = %g)\n',maxit,norm(F,inf));
+end
 
 % end of function

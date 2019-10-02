@@ -1,7 +1,5 @@
-function [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
-                                              Bi, rtol, atol, hmin, hmax, alg)
-% usage: [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
-%                                             Bi, rtol, atol, hmin, hmax, alg)
+function [tvals,Y,nsteps,lits,cfails,afails] = solve_ARK(fe,fi,Ji,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax,alg)
+% usage: [tvals,Y,nsteps,lits,cfails,afails] = solve_ARK(fe,fi,Ji,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step additive Runge-Kutta solver for the
 % vector-valued ODE problem  
@@ -41,6 +39,8 @@ function [tvals, Y, nsteps, lits] = solve_ARK(fe, fi, Ji, tvals, Y0, Be, ...
 %               y(t*) is a column vector of length m.
 %     nsteps = number of internal time steps taken by method
 %     lits   = number of linear solves required by method
+%     cfails = number of nonlinear solver convergence failures
+%     afails = number of temporal accuracy error failures
 %
 % Note: to run in fixed-step mode, call with hmin=hmax as the desired 
 % time step size.
@@ -107,13 +107,14 @@ Y = zeros(m,N);
 Y(:,1) = Y0;
 
 % initialize diagnostics
-c_fails = 0;   % total convergence failures
-a_fails = 0;   % total accuracy failures
+cfails = 0;   % total convergence failures
+afails = 0;   % total accuracy failures
 
 % set the solver parameters
-newt_maxit = 20;           % max number of Newton iterations
+newt_maxit = 3;            % max number of Newton iterations
 newt_rtol  = rtol/10;      % Newton solver relative tolerance
 newt_atol  = atol/10;      % Newton solver absolute tolerance
+h_cfail    = 0.25;         % failed newton solve step reduction factor 
 h_reduce   = 0.1;          % failed step reduction factor 
 h_safety   = 0.96;         % adaptivity safety factor
 h_growth   = 10;           % adaptivity growth bound
@@ -216,14 +217,14 @@ for tstep = 2:length(tvals)
          % set Newton initial guess, call Newton solver, and
          % increment linear solver statistics
          NewtGuess = Guess(NewtSol, Fdata, storage);
-         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_maxit);
+         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_maxit, 0);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
          % and break out of stage loop
          if (ierr ~= 0) 
             st_fail = 1;
-            c_fails = c_fails + 1;
+            cfails = cfails + 1;
             break;
          end
          
@@ -238,16 +239,47 @@ for tstep = 2:length(tvals)
       % compute new solution (and embedding if available)
       [Ynew,Y2] = Sol(storage,Fdata);
 
-      % if stages succeeded and time step adaptivity enabled, check step accuracy
-      if ((st_fail == 0) & adaptive)
+      % if a stage solve failed
+      if (st_fail == 1)
+
+         % if time step adaptivity enabled
+         if (adaptive)
+
+            % if already at minimum step, just return with failure
+            if (h <= hmin) 
+               error('Stage solve failure at minimum step size.\n  Consider reducing hmin.\n');
+            end
+
+            % otherwise, reset guess, reduce time step, retry solve
+            Ynew = Y0;
+            h = h * h_cfail;
+            continue;
+         
+         % if time step adaptivity disabled, just return with failure
+         else
+            error('Stage solve failure in fixed-step mode (fatal).\n  Consider reducing h.\n');
+         end
+
+      end
+      
+      % if we made it to this point, then all stage solves succeeded
+      
+      % if time step adaptivity enabled, check step accuracy
+      if (adaptive)
 
          % estimate error in current step
          err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
          
          % if error too high, flag step as a failure (will be be recomputed)
          if (err_step > ERRTOL*ONEPSM) 
-            a_fails = a_fails + 1;
+            afails = afails + 1;
             st_fail = 1;
+            
+            % if already at minimum step, just return with failure
+            if (h <= hmin) 
+               error('Temporal error failure at minimum step size.\n  Consider reducing hmin or increasing rtol.\n');
+            end
+            
          end
          
       end
@@ -259,15 +291,12 @@ for tstep = 2:length(tvals)
          Y0 = Ynew;
          t  = t + h;
          
-         % for embedded methods, use error estimate to adapt the time step
-         if (adaptive) 
+         % for adaptive methods, use error estimate to adapt the time step
+         if (adaptive)
 
+            % compute new step size (I-controller)
             h_old = h;
-            if (err_step == 0.0)     % no error, set max possible
-               h = tvals(end)-t;
-            else                     % set next h (I-controller)
-               h = h_safety * h_old * err_step^(-1.0/p);
-            end
+            h = h_safety * h_old * err_step^(-1.0/p);
 
             % enforce maximum growth rate on step sizes
             h = min(h_growth*h_old, h);
@@ -277,7 +306,7 @@ for tstep = 2:length(tvals)
             h = hmin;
          end
          
-      % if step solves or error test failed
+      % if the error test failed
       else
 
          % if already at minimum step, just return with failure
@@ -287,7 +316,8 @@ for tstep = 2:length(tvals)
 
          % otherwise, reset guess, reduce time step, retry solve
          Ynew = Y0;
-         h = h * h_reduce;
+         h_old = h;
+         h = min(h_safety * h_old * err_step^(-1.0/p), h_old*h_reduce);
          
       end  % end logic tests for step success/failure
       

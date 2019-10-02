@@ -14,7 +14,7 @@ clear
 % set problem parameters
 Tf = 12;
 tout = linspace(0,Tf,100);
-hmin = 1e-6;
+hmin = 1e-8;
 hmax = 1.0;
 rtol = 1e-3;
 atol = 1e-14*ones(2,1);
@@ -47,24 +47,26 @@ print('-dpng','vanderPol')
 mname = 'TRBDF2-ESDIRK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with DIRK integrator, algorithm 0: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns,nl] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax);
+[t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 
 
 % run with a diagonally-implicit RK method, algorithm 1
 mname = 'TRBDF2-ESDIRK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with DIRK integrator, algorithm 1: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns,nl] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax, 1);
+[t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hmin, hmax, 1);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 
 
 % run with an additive RK method, algorithm 0
@@ -73,12 +75,13 @@ Be = butcher(mname1);  s = numel(Be(1,:))-1;
 mname2 = 'ARK3(2)4L[2]SA-ESDIRK';
 Bi = butcher(mname2);
 fprintf('\nRunning with ARK integrator, algorithm 0: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
-[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax);
+[t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 
 
 % run with an additive RK method, algorithm 1
@@ -87,24 +90,26 @@ Be = butcher(mname1);  s = numel(Be(1,:))-1;
 mname2 = 'ARK3(2)4L[2]SA-ESDIRK';
 Bi = butcher(mname2);
 fprintf('\nRunning with ARK integrator, algorithm 1: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
-[t,Y,ns,nl] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 1);
+[t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hmin, hmax, 1);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
+fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 
 
 % run with an explicit RK method
 mname = 'Bogacki-Shampine-ERK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with ERK integrator: %s (order = %i)\n',mname,B(s+1,1))
-[t,Y,ns] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hmin, hmax);
+[t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hmin, hmax);
 err_max = max(max(abs(Y'-Ytrue)));
 err_rms = sqrt(sum(sum((Y'-Ytrue).^2))/numel(Y));
 fprintf('Accuracy/Work Results:\n')
 fprintf('   maxerr = %.5e,  rmserr = %.5e\n',err_max, err_rms);
 fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
+fprintf('   temporal error fails = %i\n',af);
 
 
 % end of script

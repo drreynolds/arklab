@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
-% usage: [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
+function [tvals,Y,nsteps,afails] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
+% usage: [tvals,Y,nsteps,afails] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 %
 % Adaptive time step explicit Runge-Kutta solver for the
 % vector-valued ODE problem 
@@ -34,6 +34,7 @@ function [tvals,Y,nsteps] = solve_ERK(fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax)
 %     y      = [y(t0), y(t1), y(t2), ..., y(tN)], where each
 %               y(t*) is a column vector of length m.
 %     nsteps = number of internal time steps taken by method
+%     afails = number of temporal accuracy error failures
 %
 % Note1: to run in fixed-step mode, call with hmin=hmax as the desired 
 % time step size.
@@ -78,7 +79,7 @@ Y(:,1) = Y0;
 % initialize diagnostics
 h_a = 0;       % number of accuracy-limited time steps
 h_s = 0;       % number of stability-limited time steps
-a_fails = 0;   % total accuracy failures
+afails = 0;    % total accuracy failures
 
 % set the solver parameters
 h_reduce = 0.1;          % failed step reduction factor 
@@ -168,7 +169,7 @@ for tstep = 2:length(tvals)
          
          % if error too high, flag step as a failure (will be recomputed)
          if (err_step > ERRTOL*ONEPSM) 
-            a_fails = a_fails + 1;
+            afails = afails + 1;
             st_fail = 1;
          end
          
