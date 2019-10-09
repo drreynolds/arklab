@@ -1,5 +1,5 @@
-function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
-% usage: [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
+function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, tol, maxit, outlevel)
+% usage: [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, tol, maxit, outlevel)
 %
 % Newton solver for the root-finding problem defined by the function Fres,
 %     Fres(y,Fdata) = 0
@@ -14,6 +14,7 @@ function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
 %          y0 = initial guess
 %          Fdata = structure containing extra information for evaluating F.
 %          ewt = error-weight vector for measuring nonlinear convergence
+%          tol = scalar tolerance for measuring nonlinear convergence
 %          maxit = maximum allowed iterations
 %          outlevel = (optional) desired diagnostic output level:
 %                0 -> no diagnostic output (only error messages)  [default]
@@ -25,8 +26,8 @@ function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, maxit, outlevel)
 %
 % Note: we use a weighted root-mean squared norm to measure
 % solution convergence:
-%     ||err|| := sqrt(1/n * sum_{i=1}^n( (err(i)*ewt(i))^2 )) < 1
-% where ewt is passed in by the user.
+%     ||err|| := sqrt(1/n * sum_{i=1}^n( (err(i)*ewt(i))^2 )) < tol
+% where the ewt vector and tol scalar are passed in by the user.
 %
 % In most cases, the choice 
 %     ewt = 1./(rtol*|y0| + atol)
@@ -67,17 +68,18 @@ for i=1:maxit
    F = Fres(y,Fdata);
 
    % check residual and increment for stopping
-   if (WrmsNorm(s) < 1)
+   if (WrmsNorm(s) < tol)
       ierr = 0;
       if (outlevel > 1)
-         fprintf('newton convergence after %i iterations (||s|| = %g)\n',i-1,WrmsNorm(s));
+         fprintf('newton convergence after %i iterations (||s|| = %g < %g = tol)\n',...
+                 i-1,WrmsNorm(s),tol);
       end
       return
    end
 
    % diagnostic output
    if (outlevel > 1)
-      fprintf('newton iteration %i, ||s|| = %g\n',i,WrmsNorm(s));
+      fprintf('newton iteration %i, ||s|| = %g >= %g = tol\n',i,WrmsNorm(s),tol);
    end
       
    % compute Jacobian
