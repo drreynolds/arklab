@@ -244,7 +244,7 @@ for tstep = 2:length(tvals)
 
             % if already at minimum step, just return with failure
             if (h <= hmin) 
-               error('Stage solve failure at minimum step size.\n  Consider reducing hmin.\n');
+               error(sprintf('Stage solve failure at minimum step size (t=%g).\n  Consider reducing hmin.\n',Fdata.tcur));
             end
 
             % otherwise, reset guess, reduce time step, retry solve
@@ -254,7 +254,7 @@ for tstep = 2:length(tvals)
          
          % if time step adaptivity disabled, just return with failure
          else
-            error('Stage solve failure in fixed-step mode (fatal).\n  Consider reducing h.\n');
+            error(sprintf('Stage solve failure in fixed-step mode (t=%g).\n  Consider reducing h.\n',Fdata.tcur));
          end
 
       end
@@ -274,7 +274,7 @@ for tstep = 2:length(tvals)
             
             % if already at minimum step, just return with failure
             if (h <= hmin) 
-               error('Temporal error failure at minimum step size.\n  Consider reducing hmin or increasing rtol.\n');
+               error(sprintf('Temporal error failure at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur));
             end
             
          end
@@ -308,7 +308,7 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            error('Cannot achieve desired accuracy.\n  Consider reducing hmin or increasing rtol.\n');
+            error('Cannot achieve desired accuracy at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
          end
 
          % otherwise, reset guess, reduce time step, retry solve
