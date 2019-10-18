@@ -216,7 +216,7 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            error('Cannot achieve desired accuracy.\nConsider reducing hmin or increasing rtol.');
+            error('Cannot achieve desired accuracy at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
          end
 
          % otherwise, reset guess, reduce time step, retry solve
