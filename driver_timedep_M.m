@@ -32,6 +32,7 @@
 clear
 
 % start output diary
+!\rm timedep_m_results.txt
 diary timedep_m_results.txt
 
 % set problem parameters
