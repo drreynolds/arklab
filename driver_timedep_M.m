@@ -1,6 +1,6 @@
 % Driver for a simple test problem with time-dependent
 % mass "matrix" and analytical solution,
-%    M(t)*dy/dt = M(t)*lamda*(y-g(t)) + gamma, t0<=t<=tf
+%    M(t)*dy/dt = M(t)*lamda*(y-g(t)) + M(t)*g'(t), t0<=t<=tf
 %    y(0) = g(t0)
 % where we use the simple mass "matrix"
 %    M(t) = gamma/g'(t)
@@ -16,14 +16,7 @@
 % proportional to the value of "gamma".
 %
 % Note: to get a 'baseline' value of order reduction for each RK
-% method, we also run each method on the problem 
-%    dy/dt = lamda*(y-g(t)) + g'(t), t0<=t<=tf
-%    y(0) = g(t0)
-% This has analytical solution
-%    y(t) = g(t).
-% Here we use g(t) = atan(t) and time interval [-3,7],
-% and hence
-%    g'(t) = 1/(1+t^2),
+% method, we also run each method on the above problem using M(t)=1.
 %
 % This program solves the problem with either DIRK, ARK and ERK
 % methods.  Unlike other test problems, this one uses a variety 
@@ -91,8 +84,8 @@ for ig = 1:length(gammas)
 
       % set problem-defining functions
       Mn = @(t)   gamma/gp(t);
-      fn = @(t,y) Mn(t)*lambda*(y - atan(t)) + gamma;
-      fe = @(t,y) gamma - Mn(t)*lambda*atan(t);
+      fn = @(t,y) Mn(t)*lambda*(y - g(t)) + Mn(t)*gp(t);
+      fe = @(t,y) Mn(t)*gp(t) - Mn(t)*lambda*g(t);
       fi = @(t,y) Mn(t)*lambda*y;
       Jn = @(t,y) Mn(t)*lambda;
       Ji = @(t,y) Mn(t)*lambda;
@@ -229,12 +222,13 @@ for il = 1:length(lambdas)
    lambda = lambdas(il);
 
    % set problem-defining functions
-   fn = @(t,y) lambda*(y - atan(t)) + gp(t);
-   fe = @(t,y) gp(t) - lambda*atan(t);
-   fi = @(t,y) lambda*y;
-   Jn = @(t,y) lambda;
-   Ji = @(t,y) lambda;
-   Es = @(t,y) 1/abs(lambda);
+   Mn = @(t)   1;
+   fn = @(t,y) Mn(t)*lambda*(y - g(t)) + Mn(t)*gp(t);
+   fe = @(t,y) Mn(t)*gp(t) - Mn(t)*lambda*g(t);
+   fi = @(t,y) Mn(t)*lambda*y;
+   Jn = @(t,y) Mn(t)*lambda;
+   Ji = @(t,y) Mn(t)*lambda;
+   Es = @(t,y) 1/Mn(t)/abs(lambda);
    
    % output general testing information
    fprintf('\n Stiffness factor lambda  = %g\n', lambda);
@@ -337,14 +331,7 @@ for il = 1:length(lambdas)
 end
 
 % store statistics to disk
-save('timedep_M_data.mat', ...
-     gammas, lambdas, algs, hvals, ...
-     DIRKmethods, DIRK_rmserrs, DIRK_lsolves, DIRK_ord, DIRK_ordred, ...
-     DIRK_rmserrs_noM, DIRK_lsolves_noM, DIRK_ord_noM, DIRK_ordred_noM, ...
-     ARKEmethods, ARKImethods, ARK_rmserrs, ARK_lsolves, ARK_ord, ARK_ordred, ...
-     ARK_rmserrs_noM, ARK_lsolves_noM, ARK_ord_noM, ARK_ordred_noM, ...
-     ERKmethods, ERK_rmserrs, ERK_ord, ERK_ordred, ...
-     ERK_rmserrs_noM, ERK_ord_noM, ERK_ordred_noM);
+save timedep_M_data.mat;
 
 % stop diary
 diary off
