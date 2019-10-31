@@ -45,8 +45,9 @@ Tf = 7;
 % set testing parameters
 tout = linspace(T0,Tf,101);
 hvals = [0.05, 0.025, 0.01, 0.005, 0.0025, 0.001, 0.0005, 0.00025];
-rtol = 1e-5;
-atol = 1e-14;
+rtol = 1e-5;     % since problem is linear in y, and tests use
+atol = 1e-14;    % fixed stepsizes, tolerances are essentially
+                 % irrelevant since 1 Newton iteration is 'exact'
 Y0 = g(T0);
 algs = [0, 1];
 DIRKmethods = {'SDIRK-2-2','EDIRK-3-3','Kvaerno(5,3,4)-ESDIRK','Kvaerno(7,4,5)-ESDIRK'};
