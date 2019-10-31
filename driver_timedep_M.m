@@ -32,8 +32,8 @@
 clear
 
 % start output diary
-!\rm timedep_m_results.txt
-diary timedep_m_results.txt
+!\rm timedep_M_results.txt
+diary timedep_M_results.txt
 
 % set problem parameters
 lambdas = [-10, -100, -1000, -1e4, -1e5];
