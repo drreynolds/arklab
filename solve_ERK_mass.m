@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps,afails] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
-% usage: [tvals,Y,nsteps,afails] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+function [tvals,Y,nsteps,afails,ierr] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+% usage: [tvals,Y,nsteps,afails,ierr] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step explicit Runge-Kutta solver for the
 % vector-valued ODE problem 
@@ -39,7 +39,8 @@ function [tvals,Y,nsteps,afails] = solve_ERK_mass(Mn,fcn,StabFn,tvals,Y0,B,rtol,
 %               y(t*) is a column vector of length m.
 %     nsteps = number of internal time steps taken by method
 %     afails = number of temporal accuracy error failures
-%
+%     ierr   = flag denoting success (0) or failure (1)
+%  
 % Note1: to run in fixed-step mode, call with hmin=hmax as the desired 
 % time step size.
 %
@@ -92,11 +93,12 @@ if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is de
    end
 end
 
-% initialize output arrays
+% initialize outputs
 N = length(tvals);
 m = length(Y0);
 Y = zeros(m,N);
 Y(:,1) = Y0;
+ierr = 0;
 
 % initialize diagnostics
 h_a = 0;       % number of accuracy-limited time steps
@@ -252,7 +254,9 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            error('Cannot achieve desired accuracy.\nConsider reducing hmin or increasing rtol.');
+            ierr = 1;
+            fprintf('Cannot achieve desired accuracy.\nConsider reducing hmin or increasing rtol.\n');
+            return
          end
 
          % otherwise, reset guess, reduce time step, retry solve

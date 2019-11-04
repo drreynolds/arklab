@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps,lits,cfails,afails] = solve_DIRK_mass(Mn,fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
-% usage: [tvals,Y,nsteps,lits,cfails,afails] = solve_DIRK_mass(Mn,fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_DIRK_mass(Mn,fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
+% usage: [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_DIRK_mass(Mn,fcn,Jfcn,tvals,Y0,B,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step diagonally-implicit Runge-Kutta solver for the
 % vector-valued ODE problem 
@@ -41,6 +41,7 @@ function [tvals,Y,nsteps,lits,cfails,afails] = solve_DIRK_mass(Mn,fcn,Jfcn,tvals
 %     lits   = number of linear solves required by method
 %     cfails = number of nonlinear solver convergence failures
 %     afails = number of temporal accuracy error failures
+%     ierr   = flag denoting success (0) or failure (1)
 %
 % Note1: to run in fixed-step mode, call with hmin=hmax as the desired 
 % time step size.
@@ -92,18 +93,23 @@ if (abs(hmax-hmin)/abs(hmax) > sqrt(eps))       % check whether adaptivity is de
    end
 end
 
-% initialize output arrays
+% initialize outputs
 N = length(tvals);
 m = length(Y0);
 Y = zeros(m,N);
 Y(:,1) = Y0;
+ierr = 0;
 
 % initialize diagnostics
 cfails = 0;   % total convergence failures
 afails = 0;   % total accuracy failures
 
 % set the solver parameters
-newt_maxit = 5;            % max number of Newton iterations
+if (adaptive)
+   newt_maxit = 3;         % max number of Newton iterations
+else
+   newt_maxit = 10;        % max number of Newton iterations
+end
 newt_tol   = 0.1;          % Newton solver tolerance factor
 h_cfail    = 0.25;         % failed newton solve step reduction factor 
 h_reduce   = 0.1;          % failed step reduction factor 
@@ -209,12 +215,12 @@ for tstep = 2:length(tvals)
          Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
          
          % call Newton solver and increment linear solver statistics
-         [NewtSol,lin,ierr] = newton(Res, Jres, NewtGuess, Fdata, rwt, newt_tol, newt_maxit, 0);
+         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, rwt, newt_tol, newt_maxit, 0);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
          % and break out of stage loop
-         if (ierr ~= 0) 
+         if (nierr ~= 0) 
             st_fail = 1;
             cfails = cfails + 1;
             break;
@@ -238,8 +244,10 @@ for tstep = 2:length(tvals)
          if (adaptive)
 
             % if already at minimum step, just return with failure
-            if (h <= hmin) 
-               error(sprintf('Stage solve failure at minimum step size (t=%g).\n  Consider reducing hmin.\n',Fdata.tcur));
+            if (h <= hmin)
+               ierr = 1;
+               fprintf('Stage solve failure at minimum step size (t=%g).\n  Consider reducing hmin.\n',Fdata.tcur);
+               return
             end
 
             % otherwise, reset guess, reduce time step, retry solve
@@ -249,7 +257,9 @@ for tstep = 2:length(tvals)
          
          % if time step adaptivity disabled, just return with failure
          else
-            error(sprintf('Stage solve failure in fixed-step mode (t=%g).\n  Consider reducing h.\n',Fdata.tcur));
+            ierr = 1;
+            fprintf('Stage solve failure in fixed-step mode (t=%g).\n  Consider reducing h.\n',Fdata.tcur);
+            return
          end
 
       end
@@ -269,7 +279,9 @@ for tstep = 2:length(tvals)
             
             % if already at minimum step, just return with failure
             if (h <= hmin) 
-               error(sprintf('Temporal error failure at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur));
+               ierr = 1;
+               fprintf('Temporal error failure at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
+               return
             end
             
          end
@@ -303,7 +315,9 @@ for tstep = 2:length(tvals)
 
          % if already at minimum step, just return with failure
          if (h <= hmin) 
-            error('Cannot achieve desired accuracy at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
+            ierr = 1;
+            fprintf('Cannot achieve desired accuracy at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
+            return
          end
 
          % otherwise, reset guess, reduce time step, retry solve
