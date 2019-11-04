@@ -1,22 +1,23 @@
-% Driver for a simple test problem with time-dependent
-% mass "matrix" and analytical solution,
-%    M(t)*dy/dt = M(t)*lamda*(y-g(t)) + M(t)*g'(t), t0<=t<=tf
-%    y(0) = g(t0)
-% where we use the simple mass "matrix"
-%    M(t) = gamma/g'(t)
-% under the condition that g'(t) ~= 0 for all t0<=t<=tf.
-% This has analytical solution
-%    y(t) = g(t).
-% Here we use g(t) = atan(t) and time interval [-3,7],
-% and hence
-%    g'(t) = 1/(1+t^2),
-%    M(t) = gamma*(1+t^2)
+% Driver for KPR test problem (nonlinear, Prothero-Robinson-type) 
+% with time-dependent mass "matrix" and analytical solution,
+%    M(t) * [ u' ] = M(t) * [lambda  e] [ (u^2-g-1)/(2u) ] + M(t) * [g'/(2u)]
+%           [ v' ]          [e      -1] [ (v^2-h-2)/(2v) ]          [h'/(2v)]
+% for t0<=t<=tf.  This has analytical solution
+%    u(t) = sqrt(1+g(t)),  v(t) = sqrt(2+h(t)),
+% and thus the initial condition is given by 
+%    u(t0) = sqrt(1+g(t0)),  v(t0) = sqrt(2+h(t0)).
+% We use the test functions and parameters:
+%    g(t) = 0.5*cos(t),
+%    h(t) = sin(t),
+%    M(t) = gamma*[cos(t) sin(t); -sin(t) cos(t)],
+%    e = 0.5
+%    lambda = [-10, -100, -1000, ...]
 % The stiffness of the problem is directly proportional to the
-% value of "lamda".  The 'units' of the mass matrix are
+% value of "G".  The 'units' of the mass matrix are
 % proportional to the value of "gamma".
 %
 % Note: to get a 'baseline' value of order reduction for each RK
-% method, we also run each method on the above problem using M(t)=1.
+% method, we also run each method on the above problem using M(t)=I.
 %
 % This program solves the problem with either DIRK, ARK and ERK
 % methods.  Unlike other test problems, this one uses a variety 
@@ -32,24 +33,27 @@
 clear
 
 % start output diary
-!\rm timedep_M_results.txt
-diary timedep_M_results.txt
+!\rm timedep_M2_results.txt
+diary timedep_M2_results.txt
 
 % set problem parameters
 lambdas = [-1, -10, -100, -1000, -1e4, -1e5];
 gammas = [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4];
-g  = @(t) atan(t);
-gp = @(t) 1/(1+t.^2);
+e = 0.5;
+g  = @(t) 0.5*cos(t);
+gp = @(t) -0.5*sin(t);
+h  = @(t) sin(t);
+hp = @(t) cos(t);
+Ytrue = @(t) [sqrt(1+g(t)); sqrt(2+h(t))];
 T0 = -3;
 Tf = 7;
 
 % set testing parameters
 tout = linspace(T0,Tf,101);
 hvals = [0.05, 0.025, 0.01, 0.005, 0.0025, 0.001, 0.0005, 0.00025];
-rtol = 1e-2;     % since problem is linear in y, and tests use
-atol = 1e-12;    % fixed stepsizes, tolerances are essentially
-                 % irrelevant since 1 Newton iteration is 'exact'
-Y0 = g(T0);
+rtol = 1e-4;
+atol = 1e-14;
+Y0 = Ytrue(T0);
 algs = [0, 1];
 DIRKmethods = {'SDIRK-2-2','EDIRK-3-3','Kvaerno(5,3,4)-ESDIRK','Kvaerno(7,4,5)-ESDIRK'};
 ARKEmethods = {'ARK(2,3,2)-ERK','Ascher(2,3,3)-ERK','ARK4(3)7L[2]SA-ERK','ARK5(4)8L[2]SA-ERK'};
@@ -58,7 +62,7 @@ ERKmethods  = {'ERK-1-1','ERK-2-2','ARK(2,3,2)-ERK','ERK-4-4','Dormand-Prince-ER
 
 
 % output general testing information
-fprintf('\nRunning time-dependent mass matrix tests:\n');
+fprintf('\nRunning nonlinear time-dependent mass matrix tests:\n');
 fprintf('   Solver tolerances:  rtol = %g,  atol = %g\n', rtol, atol);
 
 
@@ -85,13 +89,15 @@ for ig = 1:length(gammas)
       lambda = lambdas(il);
 
       % set problem-defining functions
-      Mn = @(t)   gamma/gp(t);
-      fn = @(t,y) Mn(t)*lambda*(y - g(t)) + Mn(t)*gp(t);
-      fe = @(t,y) Mn(t)*gp(t) - Mn(t)*lambda*g(t);
-      fi = @(t,y) Mn(t)*lambda*y;
-      Jn = @(t,y) Mn(t)*lambda;
-      Ji = @(t,y) Mn(t)*lambda;
-      Es = @(t,y) 1/Mn(t)/abs(lambda);
+      Mn = @(t)   gamma*[cos(t) sin(t); -sin(t) cos(t)];
+      A = [lambda, e; e, -1];
+      fe = @(t,y) Mn(t)*[gp(t)/(2*y(1)); hp(t)/(2*y(2))];
+      fi = @(t,y) Mn(t)*A*[(y(1)^2-g(t)-1)/(2*y(1)); (y(2)^2-h(t)-2)/(2*y(2))];
+      fn = @(t,y) fe(t,y) + fi(t,y);
+      Je = @(t,y) Mn(t)*[-gp(t)/(2*y(1)^2), 0; 0, -hp(t)/(2*y(2)^2)];
+      Ji = @(t,y) Mn(t)*A*[ 1-(y(1)^2-g(t)-1)/(2*y(1)^2), 0; 0, 1-(y(2)^2-h(t)-2)/(2*y(2)^2)];
+      Jn = @(t,y) Ji(t,y) + Je(t,y);
+      Es = @(t,y) 1/max(abs(eig(Jn(t,y))));
 
       % output general testing information
       fprintf('\n Stiffness factor lambda  = %g\n', lambda);
@@ -116,7 +122,7 @@ for ig = 1:length(gammas)
                      errs(ih) = 1;
                      nl = 1;
                   else
-                     errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                   end
                   DIRK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   DIRK_lsolves(ig,il,ib,ia,ih) = nl;
@@ -154,7 +160,7 @@ for ig = 1:length(gammas)
                      errs(ih) = 1;
                      nl = 1;
                   else
-                     errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                   end
                   ARK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   ARK_lsolves(ig,il,ib,ia,ih) = nl;
@@ -189,7 +195,7 @@ for ig = 1:length(gammas)
                   if (ierr ~= 0)
                      errs(ih) = 1;
                   else
-                     errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                   end
                   ERK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   if (ih>1) 
@@ -238,14 +244,16 @@ for il = 1:length(lambdas)
    lambda = lambdas(il);
 
    % set problem-defining functions
-   Mn = @(t)   1;
-   fn = @(t,y) Mn(t)*lambda*(y - g(t)) + Mn(t)*gp(t);
-   fe = @(t,y) Mn(t)*gp(t) - Mn(t)*lambda*g(t);
-   fi = @(t,y) Mn(t)*lambda*y;
-   Jn = @(t,y) Mn(t)*lambda;
-   Ji = @(t,y) Mn(t)*lambda;
-   Es = @(t,y) 1/Mn(t)/abs(lambda);
-   
+   Mn = @(t) eye(2);
+   A = [lambda, e; e, -1];
+   fe = @(t,y) Mn(t)*[gp(t)/(2*y(1)); hp(t)/(2*y(2))];
+   fi = @(t,y) Mn(t)*A*[(y(1)^2-g(t)-1)/(2*y(1)); (y(2)^2-h(t)-2)/(2*y(2))];
+   fn = @(t,y) fe(t,y) + fi(t,y);
+   Je = @(t,y) Mn(t)*[-gp(t)/(2*y(1)^2), 0; 0, -hp(t)/(2*y(2)^2)];
+   Ji = @(t,y) Mn(t)*A*[ 1-(y(1)^2-g(t)-1)/(2*y(1)^2), 0; 0, 1-(y(2)^2-h(t)-2)/(2*y(2)^2)];
+   Jn = @(t,y) Ji(t,y) + Je(t,y);
+   Es = @(t,y) 1/max(abs(eig(Jn(t,y))));
+
    % output general testing information
    fprintf('\n Stiffness factor lambda  = %g\n', lambda);
   
@@ -268,7 +276,7 @@ for il = 1:length(lambdas)
                   errs(ih) = 1;
                   nl = 1;
                else
-                  errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                end
                DIRK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                DIRK_lsolves_noM(il,ib,ia,ih) = nl;
@@ -306,7 +314,7 @@ for il = 1:length(lambdas)
                   errs(ih) = 1;
                   nl = 1;
                else
-                  errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                end
                ARK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                ARK_lsolves_noM(il,ib,ia,ih) = nl;
@@ -341,7 +349,7 @@ for il = 1:length(lambdas)
                if (ierr ~= 0)
                   errs(ih) = 1;
                else
-                  errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  errs(ih) = sqrt(sum(sum((Y-Ytrue(t)).^2))/numel(Y));
                end
                ERK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                if (ih>1) 
@@ -361,7 +369,7 @@ for il = 1:length(lambdas)
 end
 
 % store statistics to disk
-save timedep_M_data.mat;
+save timedep_M2_data.mat;
 
 % stop diary
 diary off
