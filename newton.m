@@ -39,12 +39,22 @@ function [y,lits,ierr] = newton(Fres, Jres, y0, Fdata, ewt, tol, maxit, outlevel
 % October 2019
 % All Rights Reserved
 
+% initialize result, increment vector, residual, statistics
+ierr = 0;
+y = y0;
+s = ones(size(y));
+lits = 0;
+
 % check solver inputs
 if (maxit < 1) 
-   error('newton error: requires at least 1 iteration (maxit)');
+   ierr = 1;
+   fprintf('newton error: requires at least 1 iteration (maxit)\n');
+   return
 end
 if (min(ewt) <= 0) 
-   error('newton error: illegal error weight vector (all entries must be positive)');
+   ierr = 1;
+   fprintf('newton error: illegal error weight vector (all entries must be positive)\n');
+   return
 end
 
 % handle optional 'outlevel' input
@@ -56,11 +66,6 @@ end
 % set function to measure convergence (want value <1)
 WrmsNorm = @(x) sqrt(sum((x.*ewt).^2)/length(x));
 
-% initialize result, increment vector, residual, statistics
-y = y0;
-s = ones(size(y));
-lits = 0;
-
 % perform iterations
 for i=1:maxit
 
@@ -69,7 +74,6 @@ for i=1:maxit
 
    % check residual and increment for stopping
    if (WrmsNorm(s) < tol)
-      ierr = 0;
       if (outlevel > 1)
          fprintf('newton convergence after %i iterations (||s|| = %g < %g = tol)\n',...
                  i-1,WrmsNorm(s),tol);
