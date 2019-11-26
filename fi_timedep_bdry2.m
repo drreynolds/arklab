@@ -1,0 +1,25 @@
+function udot = fi_timedep_bdry2(t, u)
+% usage: udot = fi_timedep_bdry2(t, u)
+%
+% Daniel R. Reynolds
+% Department of Mathematics
+% Southern Methodist University
+% November 2019
+% All Rights Reserved
+
+% extract problem data
+global Pdata;
+m  = Pdata.m;
+dx = Pdata.dx;
+lambda = Pdata.lambda;
+
+% initialize RHS terms
+udot = zeros(m,1);
+
+% interior index set
+int = 2:m-1;
+
+% diffusion components
+udot(int) = (lambda/dx/dx)*(u(int+1)+u(int-1)-2*u(int));
+
+% end function

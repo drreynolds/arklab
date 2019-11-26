@@ -1,14 +1,14 @@
 % Driver for heat equation with time-dependent boundary conditions:
-%      u_t = u_xx + f,  0<x<pi/2,  0<t<4
-%      u(0,x) = 0,      0<x<pi/2,
-%      u(t,0) = b1(t),             0<t<4
-%      u_x(t,pi/2) = b2(t),        0<t<4
+%      u_t = lambda*u_xx + f,  0<x<pi/2,  0<t<4/lambda
+%      u(0,x) = 0,             0<x<pi/2,
+%      u(t,0) = b1(t),                    0<t<4/lambda
+%      u_x(t,pi/2) = b2(t),               0<t<4/lambda
 % The forcing and boundary terms have the form
 %    f(t,x) = \sum_{k=1}^M c_k \cos(kx)
-%    b1(t)  = \sum_{k=1}^M c_k/k^2 (1 - e^{-t k^2})
-%    b2(t)  = -\sum_{k=1}^M c_k/k (1 - e^{-t k^2}) \sin(k\pi/2),
+%    b1(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2})
+%    b2(t)  = -\sum_{k=1}^M c_k/(lambda*k) (1 - e^{-t(lambda*k^2}) \sin(k\pi/2),
 % and thus u has analytical solution
-%    u(t,x) = \sum_{k=1}^M c_k/k^2 (1 - e^{-t k^2}) \cos(kx).
+%    u(t,x) = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2}) \cos(kx).
 %
 % Since the highest modes equilibrate the fastest, we use
 % real-valued coefficients c_k such that
@@ -28,16 +28,20 @@ surf_vs_contour = 'surf';
 true_error = false;
 
 % set problem parameters
+lambda = 1;
+xl = 0;
+xr = pi/2;
 m = 50;
-Tf = 5;
+Tf = 4/lambda;
 tout = linspace(0,Tf,10);
-hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005];
+hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005]/lambda;
 rtol = 1e-7;
 atol = 1e-13*ones(m,1);
 global Pdata;
 Pdata.c = [1, 2, 3, 4, 5];
+Pdata.lambda = lambda;
 Pdata.m = m;
-Pdata.xspan = linspace(0,pi/2,m)';
+Pdata.xspan = linspace(xl,xr,m)';
 Pdata.dx = (Pdata.xspan(end)-Pdata.xspan(1))/(m-1);
 
 % initial conditions
@@ -51,17 +55,16 @@ Jn = @J_timedep_bdry;
 Ji = @J_timedep_bdry;
 Es = @(t,y) Tf;
 k = 1:length(Pdata.c);
-Pdata.b1 = @(t) sum((Pdata.c)./(k^2).*(1-exp(-t*(k).^2)));
-Pdata.b2 = @(t) -sum((Pdata.c)./(k).*(1-exp(-t*k.^2)).*sin(k*pi/2));
-Pdata.b1dot = @(t) sum((Pdata.c).*exp(-t*(k).^2));
-bdry = @enforce_timedep_bdry;
+Pdata.b1 = @(t) sum((Pdata.c)./(Pdata.lambda*(k).^2).*(1-exp(-t*Pdata.lambda*(k).^2)));
+Pdata.b2 = @(t) -sum((Pdata.c)./(Pdata.lambda*k).*(1-exp(-t*Pdata.lambda*k.^2)).*sin(k*pi/2));
+Pdata.b1dot = @(t) sum((Pdata.c).*exp(-t*Pdata.lambda*(k).^2));
 
 % set true solution  (t must be scalar, x must be a column vector; hard-coded for 5 modes)
-utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(1)*(1-exp(-t)) ...
-               + cos(x*2)*(Pdata.c(2))/(4)*(1-exp(-t*4)) ...
-               + cos(x*3)*(Pdata.c(3))/(9)*(1-exp(-t*9)) ...
-               + cos(x*4)*(Pdata.c(4))/(16)*(1-exp(-t*16)) ...
-               + cos(x*5)*(Pdata.c(5))/(25)*(1-exp(-t*25)) );
+utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+               + cos(x*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+               + cos(x*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+               + cos(x*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+               + cos(x*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
 
 % generate true solution
 Ytrue = zeros(m,length(tout));
