@@ -113,10 +113,13 @@ for ig = 1:length(gammas)
                   fprintf('    h = %.5e,',hval);
                   [t,Y,ns,nl,ierr] = solve_DIRK_mass(Mn, fn, Jn, tout, Y0, B, rtol, atol, hval, hval, alg);
                   if (ierr ~= 0)
-                     errs(ih) = 1;
+                     errs(ih) = 10;
                      nl = 1;
                   else
                      errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                        errs(ih) = 10;
+                     end
                   end
                   DIRK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   DIRK_lsolves(ig,il,ib,ia,ih) = nl;
@@ -151,10 +154,13 @@ for ig = 1:length(gammas)
                   fprintf('     h = %.5e,',hval);
                   [t,Y,ns,nl,ierr] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, alg);
                   if (ierr ~= 0)
-                     errs(ih) = 1;
+                     errs(ih) = 10;
                      nl = 1;
                   else
                      errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                        errs(ih) = 10;
+                     end
                   end
                   ARK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   ARK_lsolves(ig,il,ib,ia,ih) = nl;
@@ -187,9 +193,12 @@ for ig = 1:length(gammas)
                   fprintf('     h = %.5e,',hval);
                   [t,Y,ns,ierr] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hval, hval, alg);
                   if (ierr ~= 0)
-                     errs(ih) = 1;
+                     errs(ih) = 10;
                   else
                      errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                     if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                        errs(ih) = 10;
+                     end
                   end
                   ERK_rmserrs(ig,il,ib,ia,ih) = errs(ih);
                   if (ih>1) 
@@ -265,10 +274,13 @@ for il = 1:length(lambdas)
                fprintf('    h = %.5e,',hval);
                [t,Y,ns,nl,ierr] = solve_DIRK_mass(Mn, fn, Jn, tout, Y0, B, rtol, atol, hval, hval, alg);
                if (ierr ~= 0)
-                  errs(ih) = 1;
+                  errs(ih) = 10;
                   nl = 1;
                else
                   errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                     errs(ih) = 10;
+                  end
                end
                DIRK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                DIRK_lsolves_noM(il,ib,ia,ih) = nl;
@@ -303,10 +315,13 @@ for il = 1:length(lambdas)
                fprintf('     h = %.5e,',hval);
                [t,Y,ns,nl,ierr] = solve_ARK_mass(Mn, fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, alg);
                if (ierr ~= 0)
-                  errs(ih) = 1;
+                  errs(ih) = 10;
                   nl = 1;
                else
                   errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                     errs(ih) = 10;
+                  end
                end
                ARK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                ARK_lsolves_noM(il,ib,ia,ih) = nl;
@@ -339,9 +354,12 @@ for il = 1:length(lambdas)
                fprintf('     h = %.5e,',hval);
                [t,Y,ns,ierr] = solve_ERK_mass(Mn, fn, Es, tout, Y0, B, rtol, atol, hval, hval, alg);
                if (ierr ~= 0)
-                  errs(ih) = 1;
+                  errs(ih) = 10;
                else
                   errs(ih) = sqrt(sum(sum((Y-g(t)).^2))/numel(Y));
+                  if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+                     errs(ih) = 10;
+                  end
                end
                ERK_rmserrs_noM(il,ib,ia,ih) = errs(ih);
                if (ih>1) 
