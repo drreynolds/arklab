@@ -188,7 +188,7 @@ for tstep = 2:length(tvals)
          Fdata.rhs = Rhs(storage, Fdata);   % 'RHS' of known data
          
          % call Newton solver and increment linear solver statistics
-         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
+         [NewtSol,lin,nierr] = newton(@Res, @Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics

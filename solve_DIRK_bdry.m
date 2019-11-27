@@ -161,7 +161,7 @@ for tstep = 2:length(tvals)
          Fdata.rhs = Rhs(storage, Fdata);  % 'RHS' of known data
 
          % call Newton solver and increment linear solver statistics
-         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
+         [NewtSol,lin,nierr] = newton(@Res, @Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
@@ -353,7 +353,7 @@ function F = Res(zcor, Fdata)
 % This function computes the (non)linear residuals for an intermediate
 % stage solution, through calling the user-supplied (in Fdata) ODE
 % right-hand side function.
-   
+
 z = Fdata.zpred + zcor;   
 F = z - Fdata.rhs - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.f(Fdata.tcur, z);
 end
