@@ -1,12 +1,12 @@
 % Driver for heat equation with time-dependent boundary conditions:
-%      u_t = lambda*u_xx + f,  0<x<pi/2,  0<t<4/lambda
-%      u(0,x) = 0,             0<x<pi/2,
-%      u(t,0) = b1(t),                    0<t<4/lambda
-%      u_x(t,pi/2) = b2(t),               0<t<4/lambda
+%      u_t = lambda*u_xx + f,  0<x<pi,  0<t<4/lambda
+%      u(0,x) = 0,             0<x<pi,
+%      u(t,0) = b1(t),                  0<t<4/lambda
+%      u(t,pi) = b2(t),                 0<t<4/lambda
 % The forcing and boundary terms have the form
 %    f(t,x) = \sum_{k=1}^M c_k \cos(kx)
 %    b1(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2})
-%    b2(t)  = -\sum_{k=1}^M c_k/(lambda*k) (1 - e^{-t(lambda*k^2}) \sin(k\pi/2),
+%    b2(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2}) \cos(k\pi)
 % and thus u has analytical solution
 %    u(t,x) = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2}) \cos(kx).
 %
@@ -18,7 +18,7 @@
 % Daniel R. Reynolds
 % Department of Mathematics
 % Southern Methodist University
-% October 2019
+% November 2019
 % All Rights Reserved
 clear
 
@@ -30,10 +30,10 @@ true_error = false;
 % set problem parameters
 lambda = 1;
 xl = 0;
-xr = pi/2;
+xr = pi;
 m = 50;
-Tf = 4/lambda;
-tout = linspace(0,Tf,10);
+Tf = 5/lambda;
+tout = linspace(0,Tf,11);
 hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005]/lambda;
 rtol = 1e-7;
 atol = 1e-13*ones(m,1);
@@ -55,9 +55,26 @@ Jn = @J_timedep_bdry;
 Ji = @J_timedep_bdry;
 Es = @(t,y) Tf;
 k = 1:length(Pdata.c);
-Pdata.b1 = @(t) sum((Pdata.c)./(Pdata.lambda*(k).^2).*(1-exp(-t*Pdata.lambda*(k).^2)));
-Pdata.b2 = @(t) -sum((Pdata.c)./(Pdata.lambda*k).*(1-exp(-t*Pdata.lambda*k.^2)).*sin(k*pi/2));
-Pdata.b1dot = @(t) sum((Pdata.c).*exp(-t*Pdata.lambda*(k).^2));
+Pdata.b1 = @(t) ( cos(xl*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                + cos(xl*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                + cos(xl*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                + cos(xl*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                + cos(xl*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+Pdata.b2 = @(t) ( cos(xr*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                + cos(xr*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                + cos(xr*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                + cos(xr*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                + cos(xr*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+Pdata.b1dot = @(t) ( cos(xl*1)*(Pdata.c(1))*(exp(-Pdata.lambda*t)) ...
+                   + cos(xl*2)*(Pdata.c(2))*(exp(-Pdata.lambda*t*4)) ...
+                   + cos(xl*3)*(Pdata.c(3))*(exp(-Pdata.lambda*t*9)) ...
+                   + cos(xl*4)*(Pdata.c(4))*(exp(-Pdata.lambda*t*16)) ...
+                   + cos(xl*5)*(Pdata.c(5))*(exp(-Pdata.lambda*t*25)) );
+Pdata.b2dot = @(t) ( cos(xr*1)*(Pdata.c(1))*(exp(-Pdata.lambda*t)) ...
+                   + cos(xr*2)*(Pdata.c(2))*(exp(-Pdata.lambda*t*4)) ...
+                   + cos(xr*3)*(Pdata.c(3))*(exp(-Pdata.lambda*t*9)) ...
+                   + cos(xr*4)*(Pdata.c(4))*(exp(-Pdata.lambda*t*16)) ...
+                   + cos(xr*5)*(Pdata.c(5))*(exp(-Pdata.lambda*t*25)) );
 
 % set true solution  (t must be scalar, x must be a column vector; hard-coded for 5 modes)
 utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
@@ -253,7 +270,7 @@ fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
 
 
 % run with an explicit RK method
-mname = 'Merson-5-4-ERK';
+mname = 'Fehlberg-ERK';
 B = butcher(mname);  s = numel(B(1,:))-1;
 fprintf('\nRunning with ERK integrator: %s (order = %i)\n',mname,B(s+1,1))
 errs_rms = zeros(size(hvals));

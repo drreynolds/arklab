@@ -23,7 +23,5 @@ for j=2:m-1
    J(j,j)   = J(j,j) - 2*dxinv2;
    J(j,j+1) = J(j,j+1) + dxinv2;
 end
-J(m,m-1) = 2*dxinv2;
-J(m,m) = -2*dxinv2;
 
 % end function

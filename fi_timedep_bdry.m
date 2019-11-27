@@ -23,12 +23,4 @@ int = 2:m-1;
 % diffusion components
 udot(int) = (lambda/dx/dx)*(u(int+1)+u(int-1)-2*u(int));
 
-% right boundary -- enforce via ghost node at m+1
-%    b2(t) = u_x(t,pi/2) = (u(m+1)-u(m-1))/(2*dx)
-% <=>
-%    b2(t)*2*dx + u(m-1) = u(m+1)
-% so use "standard" diffusion equation, with this value of the ghost node
-ump = b2(t)*2*dx + u(m-1);
-udot(m) = (lambda/dx/dx)*(ump+u(m-1)-2*u(m));
-
 % end function
