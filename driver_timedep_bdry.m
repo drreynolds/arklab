@@ -149,8 +149,10 @@ for ih = 1:length(hvals)
    end
    if (ih>1) 
       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      fprintf(' maxerr = %.5e,   rmserr = %.5e,   order = %.5e\n',errs_max(ih), errs_rms(ih), order(ih-1));
+   else
+      fprintf(' maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 end
@@ -183,8 +185,10 @@ for ih = 1:length(hvals)
    end
    if (ih>1) 
       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      fprintf(' maxerr = %.5e,   rmserr = %.5e,   order = %.5e\n',errs_max(ih), errs_rms(ih), order(ih-1));
+   else
+      fprintf(' maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 end
@@ -219,8 +223,10 @@ for ih = 1:length(hvals)
    end
    if (ih>1) 
       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      fprintf(' maxerr = %.5e,   rmserr = %.5e,   order = %.5e\n',errs_max(ih), errs_rms(ih), order(ih-1));
+   else
+      fprintf(' maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 end
@@ -255,8 +261,10 @@ for ih = 1:length(hvals)
    end
    if (ih>1) 
       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      fprintf(' maxerr = %.5e,   rmserr = %.5e,   order = %.5e\n',errs_max(ih), errs_rms(ih), order(ih-1));
+   else
+      fprintf(' maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
 end
@@ -289,8 +297,10 @@ for ih = 1:length(hvals)
    end
    if (ih>1) 
       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+      fprintf(' maxerr = %.5e,   rmserr = %.5e,   order = %.5e\n',errs_max(ih), errs_rms(ih), order(ih-1));
+   else
+      fprintf(' maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
    fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
    fprintf('   temporal error fails = %i\n',af);
 end
