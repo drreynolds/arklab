@@ -1,5 +1,5 @@
-function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax,alg)
-% usage: [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax,alg)
+function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax)
+% usage: [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax)
 %
 % Adaptive time step additive Runge-Kutta solver for the
 % vector-valued ODE problem  
@@ -30,9 +30,6 @@ function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry
 %     atol   = desired absolute error of solution  (vector or scalar)
 %     hmin   = minimum internal time step size (hmin <= t(i)-t(i-1), for all i)
 %     hmax   = maximum internal time step size (hmax >= hmin)
-%     alg    = (optional) solution algorithm:
-%                 0 - solve for stages, z_i  [default]
-%                 1 - solve for stage RHS, k_i
 %
 % Outputs: 
 %     tvals  = the same as the input array tvals
@@ -52,16 +49,6 @@ function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK_bdry(fe,fi,Ji,bdry
 % Southern Methodist University
 % October 2019
 % All Rights Reserved
-
-% handle optional 'alg' input
-if ~exist('alg','var')
-   alg = 0;
-end
-
-% TEMPORARY: error out if 'alg' specifies to solve for k
-if (alg == 1)
-   error('solve_ARK_bdry error: solving for k is currently unsupported.');
-end
 
 % check for compatible Be,Bi tables
 if (size(Be,2) ~= size(Bi,2))   
@@ -153,25 +140,6 @@ Fdata.bi = bi;
 Fdata.di = di;
 Fdata.s  = s;     % number of stages
 
-% set function names for solve components, depending on the choice of 'alg'
-if (alg == 1) 
-   Init  = @Init_k;   % initializes solution storage
-   Guess = @Guess_k;  % initial Newton guess
-   Rhs   = @Rhs_k;    % just before equation (45)
-   Res   = @Res_k;    % equation (45)
-   Jres  = @Jres_k;   % equation (46)
-   Sol   = @Sol_k;    % time-evolved solution
-   Store = @Store_k;  % stores per-stage results
-else
-   Init  = @Init_z;   % initializes solution storage
-   Guess = @Guess_z;  % initial Newton guess
-   Rhs   = @Rhs_z;    % just before equation (41)
-   Res   = @Res_z;    % equation (41)
-   Jres  = @Jres_z;   % equation (42)
-   Sol   = @Sol_z;    % time-evolved solution
-   Store = @Store_z;  % stores per-stage results
-end
-
 % set functions to compute error weight vector and measure temporal convergence
 Ewt = @(Fdata) 1./(rtol*abs(Fdata.yold)+atol);
 WrmsNorm = @(x,w) sqrt(sum((x.*w).^2)/length(x));
@@ -219,15 +187,8 @@ for tstep = 2:length(tvals)
          [NewtGuess,Fdata] = Guess(NewtSol, Fdata, bdry, storage);
          Fdata.rhs = Rhs(storage, Fdata);   % 'RHS' of known data
          
-         % set nonlinear solver tolerances based on 'alg' type
-         if (alg == 1) 
-            n_tol = newt_tol / h;
-         else
-            n_tol = newt_tol;
-         end         
-         
          % call Newton solver and increment linear solver statistics
-         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, n_tol, newt_maxit, 0);
+         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
          lits = lits + lin;
          
          % if Newton method failed, set relevant flags/statistics
@@ -352,12 +313,12 @@ end
 
 
 
-%======= Auxiliary routines when solving for ARK _stage corrections_ =======%
+%======= Auxiliary routine =======%
 
 
 
-function [Z,Fdata] = Init_z(yold, Fdata)
-% usage: [Z,Fdata] = Init_z(yold, Fdata)
+function [Z,Fdata] = Init(yold, Fdata)
+% usage: [Z,Fdata] = Init(yold, Fdata)
 %
 % Sets aside storage for stage solutions
 Z = zeros(length(yold),Fdata.s);
@@ -365,8 +326,8 @@ Fdata.zpred = yold;
 end
 
 
-function [zcor,Fdata] = Guess_z(zcor, Fdata, bdry, Z)
-% usage: [zcor,Fdata] = Guess_z(zcor, Fdata, bdry, Z)
+function [zcor,Fdata] = Guess(zcor, Fdata, bdry, Z)
+% usage: [zcor,Fdata] = Guess(zcor, Fdata, bdry, Z)
 %
 % Sets the initial guess for the Newton iteration stage solve into
 % Fdata, where zcor was the most-recently-computed stage correction
@@ -376,16 +337,16 @@ zcor = zeros(size(zcor));                    % reset 'correction' guess
 end
 
 
-function [Z] = Store_z(zcor, Fdata, Z)
-% usage: [Z] = Store_z(zcor, Fdata, Z)
+function [Z] = Store(zcor, Fdata, Z)
+% usage: [Z] = Store(zcor, Fdata, Z)
 %
 % Packs reusable data following a stage solve
 Z(:,Fdata.stage) = Fdata.zpred + zcor;
 end
 
 
-function [r] = Rhs_z(Z, Fdata)
-% usage: [r] = Rhs_z(Z, Fdata)
+function [r] = Rhs(Z, Fdata)
+% usage: [r] = Rhs(Z, Fdata)
 %
 % Inputs:
 %    Z     = stage solutions [z_1, ..., z_{stage-1}]
@@ -410,8 +371,8 @@ end
 end
 
 
-function F = Res_z(zcor, Fdata)
-% usage: F = Res_z(zcor, Fdata)
+function F = Res(zcor, Fdata)
+% usage: F = Res(zcor, Fdata)
 %
 % Inputs:  zcor = current guess for stage solution correction
 %          Fdata = structure containing extra information for evaluating F.
@@ -426,8 +387,8 @@ F = z - Fdata.rhs - Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*Fdata.fi(Fdata.tcu
 end
 
 
-function Amat = Jres_z(zcor, Fdata)
-% usage: Amat = Jres_z(zcor, Fdata)
+function Amat = Jres(zcor, Fdata)
+% usage: Amat = Jres(zcor, Fdata)
 %
 % Inputs:  zcor = current guess for stage solution correction
 %          Fdata = structure containing extra information for evaluating F.
@@ -442,8 +403,8 @@ Amat = eye(length(z)) - Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*Fdata.Ji(Fdata
 end
 
 
-function [y,y2] = Sol_z(Z, Fdata, bdry)
-% usage: [y,y2] = Sol_z(Z, Fdata, bdry)
+function [y,y2] = Sol(Z, Fdata, bdry)
+% usage: [y,y2] = Sol(Z, Fdata, bdry)
 %
 % Inputs:
 %    Z     = stage solutions [z1, ..., zs]
@@ -470,126 +431,6 @@ end
 %    ynew = yold + h*sum(be(j)*fe(j) + bi(j)*fi(j))
 y  = Fdata.yold + Fdata.h*fe*Fdata.be + Fdata.h*fi*Fdata.bi;
 y2 = Fdata.yold + Fdata.h*fe*Fdata.de + Fdata.h*fi*Fdata.di;
-
-% enforce boundary conditions on both solutions
-y  = bdry(Fdata.t+Fdata.h,y);
-y2 = bdry(Fdata.t+Fdata.h,y2);
-
-end
-
-
-
-%======= Auxiliary routines when solving for ARK _RHS corrections_ =======%
-
-
-
-function [K,Fdata] = Init_k(yold, Fdata)
-% usage: [K,Fdata] = Init_k(yold, Fdata)
-%
-% Sets aside storage for stage RHS vectors
-K = zeros(length(yold),Fdata.s,2);   % (sol vec) x (stages) x (implicit,explicit)
-Fdata.kpred = Fdata.fi(Fdata.t, yold);
-end
-
-
-function [kcor,Fdata] = Guess_k(kcor, Fdata, bdry, K)
-% usage: [kcor,Fdata] = Guess_k(kcor, Fdata, bdry, K)
-%
-% Sets the initial guess for the Newton iteration stage solve into
-% Fdata, where 'kcor' was the most-recently-computed RHS correction
-Fdata.kpred = Fdata.kpred + kcor;     % update current stored predictor
-kcor = zeros(size(kcor));             % reset 'correction' guess
-end
-
-
-function [K] = Store_k(kcor, Fdata, K)
-% usage: [K] = Store_k(kcor, Fdata, K)
-%
-% Packs reusable data following a stage solve
-
-% just store implicit RHS
-K(:,Fdata.stage,1) = Fdata.kpred + kcor;
-
-% compute/store explicit RHS at new stage
-znew = Fdata.rhs + Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*K(:,Fdata.stage,1);
-K(:,Fdata.stage,2) = Fdata.fe(Fdata.t+Fdata.h*Fdata.ce(Fdata.stage), znew);
-end
-
-
-function [r] = Rhs_k(K, Fdata)
-% usage: [r] = Rhs_k(K, Fdata)
-%
-% Inputs:
-%    K     = stage rhs [fi(z_1), ..., fi(z_{stage-1}), fe(z_1), ..., fe(z_{stage-1})]
-%    Fdata = structure containing extra problem information
-%
-% Outputs: 
-%    r     = rhs vector containing all 'known' information for
-%            implicit stage solve
-%
-%    rhs = y_n + h*sum_{j=1}^{i-1} (aI(i,j)*fI_j + aE(i,j)*fE_j)
-
-% construct rhs
-r = Fdata.yold;
-for j = 1:Fdata.stage-1
-   r = r + Fdata.h*(Fdata.Ai(Fdata.stage,j)*K(:,j,1) + Fdata.Ae(Fdata.stage,j)*K(:,j,2));
-end
-end
-
-
-function F = Res_k(kcor, Fdata)
-% usage: F = Res_k(kcor, Fdata)
-%
-% Inputs:  kcor = current guess for stage rhs correction
-%          Fdata = structure containing extra information for evaluating F.
-% Outputs: F = residual at current guess
-%
-% This function computes the (non)linear residuals for an intermediate
-% stage solution, through calling the user-supplied (in Fdata) ODE
-% right-hand side function.
-   
-k = Fdata.kpred + kcor;   
-F = k - Fdata.fi(Fdata.tcur, Fdata.rhs + Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*k);
-end
-
-
-function Amat = Jres_k(kcor, Fdata)
-% usage: Amat = Jres_k(kcor, Fdata)
-%
-% Inputs:  kcor = current guess for stage rhs correction
-%          Fdata = structure containing extra information for evaluating F.
-% Outputs: Amat = Jacobian at current guess
-%
-% This function computes the Jacobian of each intermediate stage residual
-% for a multi-stage ARK method, through calling the user-supplied (in
-% Fdata) ODE Jacobian function. 
-
-k    = Fdata.kpred + kcor;   
-Aii  = Fdata.Ai(Fdata.stage,Fdata.stage);
-Amat = eye(length(k)) - Fdata.h*Aii*Fdata.Ji(Fdata.tcur, Fdata.rhs + Fdata.h*Aii*k);
-end
-
-
-function [y,y2] = Sol_k(K, Fdata, bdry)
-% usage: [y,y2] = Sol_k(K, Fdata, bdry)
-%
-% Inputs:
-%    K     = stage rhs [fi(z_1), ..., fi(z_{stage-1}), fe(z_1), ..., fe(z_{stage-1})]
-%    Fdata = structure containing extra problem information
-%    bdry  = boundary condition enforcement function
-%
-% Outputs: 
-%    y     = step solution
-%    y2    = embedded solution (if embedding included in Butcher 
-%               table; otherwise the same as y)
-
-% have RHS at each stored stage, so just piece together
-%    ynew = yold + h*sum(bi(j)*fi(j) + be(j)*fe(j))
-
-% form the solutions
-%    ynew = yold + h*sum(be(j)*fe(j) + bi(j)*fi(j))
-y  = Fdata.yold + Fdata.h*K(:,:,1)*Fdata.bi + Fdata.h*K(:,:,2)*Fdata.be;
-y2 = Fdata.yold + Fdata.h*K(:,:,1)*Fdata.di + Fdata.h*K(:,:,2)*Fdata.de;
 
 % enforce boundary conditions on both solutions
 y  = bdry(Fdata.t+Fdata.h,y);

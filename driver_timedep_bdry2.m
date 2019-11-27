@@ -1,12 +1,12 @@
 % Driver for heat equation with time-dependent Dirichlet boundary conditions:
-%      u_t = lambda*u_xx + f,  0<x<pi/2,  0<t<4/lambda
-%      u(0,x) = 0,             0<x<pi/2,
-%      u(t,0) = b1(t),                    0<t<4/lambda
-%      u(t,pi) = b2(t),                   0<t<4/lambda
+%      u_t = lambda*u_xx + f,  0<x<pi,  0<t<4/lambda
+%      u(0,x) = 0,             0<x<pi,
+%      u(t,0) = b1(t),                  0<t<4/lambda
+%      u(t,pi) = b2(t),                 0<t<4/lambda
 % The forcing and boundary terms have the form
 %    f(t,x) = \sum_{k=1}^M c_k \cos(kx)
 %    b1(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2})
-%    b2(t)  = -\sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2})
+%    b2(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2}) \cos(k\pi)
 % and thus u has analytical solution
 %    u(t,x) = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2}) \cos(kx).
 %
@@ -22,213 +22,373 @@
 % All Rights Reserved
 clear
 
+% start output diary
+!\rm timedep_bdry_results.txt
+diary timedep_bdry_results.txt
+
 % set problem parameters
-lambda = 1;
+lambdas = [1, 10, 100, 1000, 1e4, 1e5];
 xl = 0;
 xr = pi;
 m = 50;
-Tf = 4/lambda;
-tout = linspace(0,Tf,10);
-hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005]/lambda;
-rtol = 1e-7;
-atol = 1e-13*ones(m,1);
+T0 = 0;
 global Pdata;
 Pdata.c = [1, 2, 3, 4, 5];
-Pdata.lambda = lambda;
 Pdata.m = m;
 Pdata.xspan = linspace(xl,xr,m)';
 Pdata.dx = (Pdata.xspan(end)-Pdata.xspan(1))/(m-1);
 
-% initial conditions
+% set testing parameters
+hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005];
+rtol = 1e-7;
+atol = 1e-13*ones(m,1);
 Y0 = zeros(size(Pdata.xspan));
+DIRKmethods = {'SDIRK-2-2','EDIRK-3-3','Kvaerno(5,3,4)-ESDIRK','Kvaerno(7,4,5)-ESDIRK'};
+ARKEmethods = {'ARK(2,3,2)-ERK','Ascher(2,3,3)-ERK','ARK4(3)7L[2]SA-ERK','ARK5(4)8L[2]SA-ERK'};
+ARKImethods = {'ARK(2,3,2)-SDIRK','Ascher(2,3,3)-SDIRK','ARK4(3)7L[2]SA-ESDIRK','ARK5(4)8L[2]SA-ESDIRK'};
+ERKmethods  = {'ERK-1-1','ERK-2-2','ARK(2,3,2)-ERK','ERK-4-4','Dormand-Prince-ERK'};
 
-% set problem-defining functions  (t must be scalar in each)
-fn = @f_timedep_bdry2;
-fe = @fe_timedep_bdry2;
-fi = @fi_timedep_bdry2;
-Jn = @J_timedep_bdry2;
-Ji = @J_timedep_bdry2;
-Es = @(t,y) Tf;
-k = 1:length(Pdata.c);
-Pdata.b1 = @(t) ( cos(xl*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
-                + cos(xl*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
-                + cos(xl*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
-                + cos(xl*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
-                + cos(xl*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
-Pdata.b2 = @(t) ( cos(xr*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
-                + cos(xr*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
-                + cos(xr*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
-                + cos(xr*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
-                + cos(xr*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
-bdry = @enforce_timedep_bdry2;
-
-% set true solution  (t must be scalar, x must be a column vector; hard-coded for 5 modes)
-utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
-               + cos(x*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
-               + cos(x*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
-               + cos(x*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
-               + cos(x*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
-
-% generate true solution
-Ytrue = zeros(m,length(tout));
-for i=1:length(tout)
-   Ytrue(:,i) = utrue(tout(i),Pdata.xspan);
-end
 
 % general output header information
 fprintf('\nTime-dependent boundary test problem 2:\n')
 fprintf('    spatial domain: [%g, %g]\n',Pdata.xspan(1),Pdata.xspan(end))
-fprintf('    time domain: [0, %g]\n',Tf)
 fprintf('    spatial mesh nodes: %i\n',m)
+fprintf('    tolerances:  rtol = %g,  atol = %g\n', rtol, atol(1));
 
 
-% run with a diagonally-implicit RK method, algorithm 0
-mname = 'Kvaerno(7,4,5)-ESDIRK';
-B = butcher(mname);  s = numel(B(1,:))-1;
-fprintf('\nRunning with DIRK integrator, algorithm 0: %s (order = %i)\n',mname,B(s+1,1))
-errs_rms = zeros(size(hvals));
-errs_max = zeros(size(hvals));
-order = zeros(length(hvals)-1,1);
-for ih = 1:length(hvals)
-   h = hvals(ih);
-   fprintf('   h = %.5e,',h);
-   [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, h, h, 0);
-   errs_max(ih) = max(max(abs(Y-Ytrue)));
-   errs_rms(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
-   if (ih>1) 
-      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+% create 'statistics' storage
+DIRK_recommended_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
+DIRK_recommended_ord = zeros(length(lambdas),length(DIRKmethods));
+DIRK_recommended_ordred = zeros(length(lambdas),length(DIRKmethods));
+DIRK_forced_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
+DIRK_forced_ord = zeros(length(lambdas),length(DIRKmethods));
+DIRK_forced_ordred = zeros(length(lambdas),length(DIRKmethods));
+
+ARK_recommended_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
+ARK_recommended_ord = zeros(length(lambdas),length(ARKEmethods));
+ARK_recommended_ordred = zeros(length(lambdas),length(ARKEmethods));
+ARK_forced_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
+ARK_forced_ord = zeros(length(lambdas),length(ARKEmethods));
+ARK_forced_ordred = zeros(length(lambdas),length(ARKEmethods));
+
+ERK_recommended_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
+ERK_recommended_ord = zeros(length(lambdas),length(ERKmethods));
+ERK_recommended_ordred = zeros(length(lambdas),length(ERKmethods));
+ERK_forced_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
+ERK_forced_ord = zeros(length(lambdas),length(ERKmethods));
+ERK_forced_ordred = zeros(length(lambdas),length(ERKmethods));
+
+% solve with 'recommended' approach
+fprintf('\nResults with recommended approach:\n')
+   
+
+% loop over stiffness parameters
+for il = 1:length(lambdas)
+
+   % set lambda-specific testing values and output general testing information
+   lambda = lambdas(il);
+   Tf = 5/lambda;
+   tout = linspace(T0,Tf,11);
+   Pdata.lambda = lambda;
+   fprintf('\n  Stiffness factor lambda  = %g\n', lambda);
+   
+   % set problem-defining functions  (t must be scalar in each)
+   fn = @f_timedep_bdry;
+   fe = @fe_timedep_bdry;
+   fi = @fi_timedep_bdry;
+   Jn = @J_timedep_bdry;
+   Ji = @J_timedep_bdry;
+   Es = @(t,y) Tf;
+   k = 1:length(Pdata.c);
+   Pdata.b1 = @(t) ( cos(xl*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                     + cos(xl*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                     + cos(xl*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                     + cos(xl*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                     + cos(xl*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+   Pdata.b2 = @(t) ( cos(xr*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                     + cos(xr*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                     + cos(xr*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                     + cos(xr*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                     + cos(xr*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+   Pdata.b1dot = @(t) ( cos(xl*1)*(Pdata.c(1))*(exp(-Pdata.lambda*t)) ...
+                        + cos(xl*2)*(Pdata.c(2))*(exp(-Pdata.lambda*t*4)) ...
+                        + cos(xl*3)*(Pdata.c(3))*(exp(-Pdata.lambda*t*9)) ...
+                        + cos(xl*4)*(Pdata.c(4))*(exp(-Pdata.lambda*t*16)) ...
+                        + cos(xl*5)*(Pdata.c(5))*(exp(-Pdata.lambda*t*25)) );
+   Pdata.b2dot = @(t) ( cos(xr*1)*(Pdata.c(1))*(exp(-Pdata.lambda*t)) ...
+                        + cos(xr*2)*(Pdata.c(2))*(exp(-Pdata.lambda*t*4)) ...
+                        + cos(xr*3)*(Pdata.c(3))*(exp(-Pdata.lambda*t*9)) ...
+                        + cos(xr*4)*(Pdata.c(4))*(exp(-Pdata.lambda*t*16)) ...
+                        + cos(xr*5)*(Pdata.c(5))*(exp(-Pdata.lambda*t*25)) );
+
+   % set true solution  (t must be scalar, x must be a column vector; hard-coded for 5 modes)
+   utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                    + cos(x*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                    + cos(x*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                    + cos(x*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                    + cos(x*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+
+   % generate true solution 
+   Ytrue = zeros(m,length(tout));
+   for i=1:length(tout)
+      Ytrue(:,i) = utrue(tout(i),Pdata.xspan);
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-   fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
-   fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
-end
-fprintf('Order of accuracy estimates (based on RMS errors above):\n')
-for ih = 2:length(hvals)
-   fprintf('  %g', order(ih-1) )
-end
-s=sort(order);
-fprintf('\nOverall order of accuracy estimate = %g\n',sum(order)/length(order))
-fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
 
-
-% $$$ % run with a diagonally-implicit RK method, algorithm 1
-% $$$ mname = 'Kvaerno(7,4,5)-ESDIRK';
-% $$$ B = butcher(mname);  s = numel(B(1,:))-1;
-% $$$ fprintf('\nRunning with DIRK integrator, algorithm 1: %s (order = %i)\n',mname,B(s+1,1))
-% $$$ errs_rms = zeros(size(hvals));
-% $$$ errs_max = zeros(size(hvals));
-% $$$ order = zeros(length(hvals)-1,1);
-% $$$ for ih = 1:length(hvals)
-% $$$    h = hvals(ih);
-% $$$    fprintf('   h = %.5e,',h);
-% $$$    [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, h, h, 1);
-% $$$    errs_max(ih) = max(max(abs(Y-Ytrue)));
-% $$$    errs_rms(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
-% $$$    if (ih>1) 
-% $$$       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-% $$$    end
-% $$$    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-% $$$    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
-% $$$    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
-% $$$ end
-% $$$ fprintf('Order of accuracy estimates (based on RMS errors above):\n')
-% $$$ for ih = 2:length(hvals)
-% $$$    fprintf('  %g', order(ih-1) )
-% $$$ end
-% $$$ s=sort(order);
-% $$$ fprintf('\nOverall order of accuracy estimate = %g\n',sum(order)/length(order))
-% $$$ fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
-
-
-% run with an ARK method, algorithm 0
-mname1 = 'ARK5(4)8L[2]SA-ERK';
-Be = butcher(mname1);  s = numel(Be(1,:))-1;
-mname2 = 'ARK5(4)8L[2]SA-ESDIRK';
-Bi = butcher(mname2);  s = numel(Bi(1,:))-1;
-fprintf('\nRunning with ARK integrator, algorithm 0: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
-errs_rms = zeros(size(hvals));
-errs_max = zeros(size(hvals));
-order = zeros(length(hvals)-1,1);
-for ih = 1:length(hvals)
-   h = hvals(ih);
-   fprintf('   h = %.5e,',h);
-   [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, h, h, 0);
-   errs_max(ih) = max(max(abs(Y-Ytrue)));
-   errs_rms(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
-   if (ih>1) 
-      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+   % run DIRK tests
+   if (length(DIRKmethods) > 0) 
+      for ib = 1:length(DIRKmethods)
+         
+         mname = DIRKmethods{ib};
+         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+         fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
+         errs = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda;
+            fprintf('      h = %.5e,',hval);
+            [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            DIRK_recommended_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+            fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         DIRK_recommended_ord(il,ib) = ord;
+         DIRK_recommended_ordred(il,ib) = max(0,q-ord);
+         
+      end
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-   fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
-   fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
-end
-fprintf('Order of accuracy estimates (based on RMS errors above):\n')
-for ih = 2:length(hvals)
-   fprintf('  %g', order(ih-1) )
-end
-s=sort(order);
-fprintf('\nOverall order of accuracy estimate = %g\n',sum(order)/length(order))
-fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
 
-
-% $$$ % run with an ARK method, algorithm 1
-% $$$ mname1 = 'ARK5(4)8L[2]SA-ERK';
-% $$$ Be = butcher(mname1);  s = numel(Be(1,:))-1;
-% $$$ mname2 = 'ARK5(4)8L[2]SA-ESDIRK';
-% $$$ Bi = butcher(mname2);  s = numel(Bi(1,:))-1;
-% $$$ fprintf('\nRunning with ARK integrator, algorithm 1: %s/%s (order = %i)\n',mname1,mname2,Be(s+1,1))
-% $$$ errs_rms = zeros(size(hvals));
-% $$$ errs_max = zeros(size(hvals));
-% $$$ order = zeros(length(hvals)-1,1);
-% $$$ for ih = 1:length(hvals)
-% $$$    h = hvals(ih);
-% $$$    fprintf('   h = %.5e,',h);
-% $$$    [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, h, h, 1);
-% $$$    errs_max(ih) = max(max(abs(Y-Ytrue)));
-% $$$    errs_rms(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
-% $$$    if (ih>1) 
-% $$$       order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-% $$$    end
-% $$$    fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-% $$$    fprintf('   steps = %i (stages = %i), linear solves = %i\n',ns,ns*s,nl);
-% $$$    fprintf('   newton conv fails = %i, temporal error fails = %i\n',cf,af);
-% $$$ end
-% $$$ fprintf('Order of accuracy estimates (based on RMS errors above):\n')
-% $$$ for ih = 2:length(hvals)
-% $$$    fprintf('  %g', order(ih-1) )
-% $$$ end
-% $$$ s=sort(order);
-% $$$ fprintf('\nOverall order of accuracy estimate = %g\n',sum(order)/length(order))
-% $$$ fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
-
-
-% run with an explicit RK method
-mname = 'Merson-5-4-ERK';
-B = butcher(mname);  s = numel(B(1,:))-1;
-fprintf('\nRunning with ERK integrator: %s (order = %i)\n',mname,B(s+1,1))
-errs_rms = zeros(size(hvals));
-errs_max = zeros(size(hvals));
-order = zeros(length(hvals)-1,1);
-for ih = 1:length(hvals)
-   h = hvals(ih)/100;
-   fprintf('   h = %.5e,',h);
-   [t,Y,ns,af] = solve_ERK_bdry(fn, Es, bdry, tout, Y0, B, rtol, atol, h, h);
-   errs_max(ih) = max(max(abs(Y-Ytrue)));
-   errs_rms(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
-   if (ih>1) 
-      order(ih-1) = log( errs_rms(ih)/errs_rms(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+   % run ARK tests
+   if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
+      for ib = 1:length(ARKImethods)
+         
+         mname1 = ARKEmethods{ib};
+         Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+         mname2 = ARKImethods{ib};
+         Bi = butcher(mname2);
+         fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+         errs = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda;
+            fprintf('      h = %.5e,',hval);
+            [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            ARK_recommended_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+            fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         ARK_recommended_ord(il,ib) = ord;
+         ARK_recommended_ordred(il,ib) = max(0,q-ord);
+    
+      end
    end
-   fprintf('   maxerr = %.5e,   rmserr = %.5e\n',errs_max(ih), errs_rms(ih));
-   fprintf('   steps = %i (stages = %i)\n',ns,ns*s);
-   fprintf('   temporal error fails = %i\n',af);
+   
+   % run ERK tests
+   if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
+      for ib = 1:length(ERKmethods)
+         mname = ERKmethods{ib};
+         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+         fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+         errs_rms = zeros(size(hvals));
+         errs_max = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda/100;
+            fprintf('   h = %.5e,',hval);
+            [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            ARK_recommended_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e\n',errs(ih));
+            fprintf('      temporal error fails = %i\n',af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         ERK_recommended_ord(il,ib) = ord;
+         ERK_recommended_ordred(il,ib) = max(0,q-ord);
+         
+      end
+   end
+   
 end
-fprintf('Order of accuracy estimates (based on RMS errors above):\n')
-for ih = 2:length(hvals)
-   fprintf('  %g', order(ih-1) )
+
+   
+   
+
+% solve with 'forced' approach
+fprintf('\nResults with forced approach:\n')
+
+% loop over stiffness parameters
+for il = 1:length(lambdas)
+
+   % set lambda-specific testing values and output general testing information
+   lambda = lambdas(il);
+   Tf = 5/lambda;
+   tout = linspace(T0,Tf,11);
+   Pdata.lambda = lambda;
+   fprintf('\n  Stiffness factor lambda  = %g\n', lambda);
+   
+   % set problem-defining functions  (t must be scalar in each)
+   fn = @f_timedep_bdry2;
+   fe = @fe_timedep_bdry2;
+   fi = @fi_timedep_bdry2;
+   Jn = @J_timedep_bdry2;
+   Ji = @J_timedep_bdry2;
+   Es = @(t,y) Tf;
+   k = 1:length(Pdata.c);
+   Pdata.b1 = @(t) ( cos(xl*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                   + cos(xl*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                   + cos(xl*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                   + cos(xl*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                   + cos(xl*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+   Pdata.b2 = @(t) ( cos(xr*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                   + cos(xr*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                   + cos(xr*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                   + cos(xr*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                   + cos(xr*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+   bdry = @enforce_timedep_bdry2;
+   
+   % set true solution  (t must be scalar, x must be a column vector; hard-coded for 5 modes)
+   utrue = @(t,x) ( cos(x*1)*(Pdata.c(1))/(Pdata.lambda*1)*(1-exp(-Pdata.lambda*t)) ...
+                  + cos(x*2)*(Pdata.c(2))/(Pdata.lambda*4)*(1-exp(-Pdata.lambda*t*4)) ...
+                  + cos(x*3)*(Pdata.c(3))/(Pdata.lambda*9)*(1-exp(-Pdata.lambda*t*9)) ...
+                  + cos(x*4)*(Pdata.c(4))/(Pdata.lambda*16)*(1-exp(-Pdata.lambda*t*16)) ...
+                  + cos(x*5)*(Pdata.c(5))/(Pdata.lambda*25)*(1-exp(-Pdata.lambda*t*25)) );
+
+   % generate true solution 
+   Ytrue = zeros(m,length(tout));
+   for i=1:length(tout)
+      Ytrue(:,i) = utrue(tout(i),Pdata.xspan);
+   end
+
+   % run DIRK tests
+   if (length(DIRKmethods) > 0) 
+      for ib = 1:length(DIRKmethods)
+         
+         mname = DIRKmethods{ib};
+         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+         fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
+         errs = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda;
+            fprintf('      h = %.5e,',hval);
+            [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, hval, hval);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            DIRK_forced_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+            fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         DIRK_forced_ord(il,ib) = ord;
+         DIRK_forced_ordred(il,ib) = max(0,q-ord);
+         
+      end
+   end
+
+   % run ARK tests
+   if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
+      for ib = 1:length(ARKImethods)
+         
+         mname1 = ARKEmethods{ib};
+         Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+         mname2 = ARKImethods{ib};
+         Bi = butcher(mname2);
+         fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+         errs = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda;
+            fprintf('      h = %.5e,',hval);
+            [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, hval, hval);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            ARK_forced_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+            fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         ARK_forced_ord(il,ib) = ord;
+         ARK_forced_ordred(il,ib) = max(0,q-ord);
+    
+      end
+   end
+   
+   % run ERK tests
+   if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
+      for ib = 1:length(ERKmethods)
+         mname = ERKmethods{ib};
+         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+         fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+         errs_rms = zeros(size(hvals));
+         errs_max = zeros(size(hvals));
+         order = zeros(length(hvals)-1,1);
+         for ih = 1:length(hvals)
+            hval = hvals(ih)/lambda/100;
+            fprintf('   h = %.5e,',hval);
+            [t,Y,ns,af] = solve_ERK_bdry(fn, Es, bdry, tout, Y0, B, rtol, atol, hval, hval);
+            errs(ih) = sqrt(sum(sum((Y-Ytrue).^2))/numel(Y));
+            if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 10;
+            end
+            ARK_forced_rmserrs(il,ib,ih) = errs(ih);
+            if (ih>1) 
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+            end
+            fprintf('      rmserr = %.2e\n',errs(ih));
+            fprintf('      temporal error fails = %i\n',af);
+         end
+         s = sort(order);  ord = s(end-1);
+         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+         ERK_forced_ord(il,ib) = ord;
+         ERK_forced_ordred(il,ib) = max(0,q-ord);
+         
+      end
+   end
+   
 end
-s=sort(order);
-fprintf('\nOverall order of accuracy estimate = %g\n',sum(order)/length(order))
-fprintf('Max 2 order of accuracy estimates = %g, %g\n\n',s(end-1:end))
+
+
+% store statistics to disk
+save timedep_bdry_data.mat;
+
+% stop diary
+diary off
 
 
 % end of script
