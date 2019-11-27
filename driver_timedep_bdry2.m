@@ -141,7 +141,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             DIRK_recommended_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
@@ -177,7 +177,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             ARK_recommended_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
@@ -211,7 +211,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             ARK_recommended_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
@@ -268,7 +268,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, hval, hval);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             DIRK_forced_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
@@ -304,7 +304,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, hval, hval);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             ARK_forced_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
@@ -338,7 +338,7 @@ for il = 1:length(lambdas)
             [t,Y,ns,af] = solve_ERK_bdry(fn, Es, bdry, tout, Y0, B, rtol, atol, hval, hval);
             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-               errs(ih) = 10;
+               errs(ih) = 1;
             end
             ARK_forced_rmserrs(il,ib,ih) = errs(ih);
             if (ih>1) 
