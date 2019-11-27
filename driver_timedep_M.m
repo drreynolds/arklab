@@ -131,7 +131,7 @@ for ig = 1:length(gammas)
                s = sort(order);  ord = s(end-1);
                fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
                DIRK_ord(ig,il,ib,ia) = ord;
-               DIRK_ordred(ig,il,ib,ia,ih) = max(0,q-ord);
+               DIRK_ordred(ig,il,ib,ia) = max(0,q-ord);
             end
          end
       end
@@ -172,7 +172,7 @@ for ig = 1:length(gammas)
                s = sort(order);  ord = s(end-1);
                fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
                ARK_ord(ig,il,ib,ia) = ord;
-               ARK_ordred(ig,il,ib,ia,ih) = max(0,q-ord);
+               ARK_ordred(ig,il,ib,ia) = max(0,q-ord);
             end
          end
       end
@@ -209,7 +209,7 @@ for ig = 1:length(gammas)
                s = sort(order);  ord = s(end-1);
                fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
                ERK_ord(ig,il,ib,ia) = ord;
-               ERK_ordred(ig,il,ib,ia,ih) = max(0,q-ord);
+               ERK_ordred(ig,il,ib,ia) = max(0,q-ord);
             end
          end
       end
@@ -292,7 +292,7 @@ for il = 1:length(lambdas)
             s = sort(order);  ord = s(end-1);
             fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
             DIRK_ord_noM(il,ib,ia) = ord;
-            DIRK_ordred_noM(il,ib,ia,ih) = max(0,q-ord);
+            DIRK_ordred_noM(il,ib,ia) = max(0,q-ord);
          end
       end
    end
@@ -333,7 +333,7 @@ for il = 1:length(lambdas)
             s = sort(order);  ord = s(end-1);
             fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
             ARK_ord_noM(il,ib,ia) = ord;
-            ARK_ordred_noM(il,ib,ia,ih) = max(0,q-ord);
+            ARK_ordred_noM(il,ib,ia) = max(0,q-ord);
          end
       end
    end
@@ -370,7 +370,7 @@ for il = 1:length(lambdas)
             s = sort(order);  ord = s(end-1);
             fprintf('  estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
             ERK_ord_noM(il,ib,ia) = ord;
-            ERK_ordred_noM(il,ib,ia,ih) = max(0,q-ord);
+            ERK_ordred_noM(il,ib,ia) = max(0,q-ord);
          end
       end
    end
