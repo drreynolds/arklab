@@ -43,14 +43,10 @@ hvals = [0.5, 0.25, 0.1, 0.05, 0.025, 0.01, 0.005];
 rtol = 1e-7;
 atol = 1e-13*ones(m,1);
 Y0 = zeros(size(Pdata.xspan));
-%DIRKmethods = {'SDIRK-2-2','EDIRK-3-3','Kvaerno(5,3,4)-ESDIRK','Kvaerno(7,4,5)-ESDIRK'};
-DIRKmethods = {'Kvaerno(7,4,5)-ESDIRK'};
-%ARKEmethods = {'ARK(2,3,2)-ERK','Ascher(2,3,3)-ERK','ARK4(3)7L[2]SA-ERK','ARK5(4)8L[2]SA-ERK'};
-%ARKImethods = {'ARK(2,3,2)-SDIRK','Ascher(2,3,3)-SDIRK','ARK4(3)7L[2]SA-ESDIRK','ARK5(4)8L[2]SA-ESDIRK'};
-ARKEmethods = {'ARK5(4)8L[2]SA-ERK'};
-ARKImethods = {'ARK5(4)8L[2]SA-ESDIRK'};
-%ERKmethods  = {'ERK-1-1','ERK-2-2','ARK(2,3,2)-ERK','ERK-4-4','Dormand-Prince-ERK'};
-ERKmethods  = {'Dormand-Prince-ERK'};
+DIRKmethods = {'SDIRK-2-2','EDIRK-3-3','Kvaerno(5,3,4)-ESDIRK','Kvaerno(7,4,5)-ESDIRK'};
+ARKEmethods = {'ARK(2,3,2)-ERK','Ascher(2,3,3)-ERK','ARK4(3)7L[2]SA-ERK','ARK5(4)8L[2]SA-ERK'};
+ARKImethods = {'ARK(2,3,2)-SDIRK','Ascher(2,3,3)-SDIRK','ARK4(3)7L[2]SA-ESDIRK','ARK5(4)8L[2]SA-ESDIRK'};
+ERKmethods  = {'ERK-1-1','ERK-2-2','ARK(2,3,2)-ERK','ERK-4-4','Dormand-Prince-ERK'};
 
 
 % general output header information
