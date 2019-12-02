@@ -208,7 +208,7 @@ for ib = 1:length(DIRKmethods)
    figure()
    z = squeeze(mean(z_data,1));
    k = squeeze(mean(k_data,1));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname))
@@ -217,7 +217,7 @@ for ib = 1:length(DIRKmethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('accuracy')
    title(sprintf('Accuracy vs mass units (method = %s)',mname))
@@ -246,7 +246,7 @@ for ib = 1:length(ARKImethods)
    figure()
    z = squeeze(mean(z_data,1));
    k = squeeze(mean(k_data,1));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname1))
@@ -255,7 +255,7 @@ for ib = 1:length(ARKImethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('accuracy')
    title(sprintf('Accuracy vs mass units (method = %s)',mname))
@@ -283,7 +283,7 @@ for ib = 1:length(ERKmethods)
    figure()
    z = squeeze(mean(z_data,1));
    k = squeeze(mean(k_data,1));
-   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   loglog(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
    legend('(z)','(k)')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname))
@@ -292,7 +292,7 @@ for ib = 1:length(ERKmethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('accuracy')
    title(sprintf('Accuracy vs mass units (method = %s)',mname))
@@ -336,8 +336,8 @@ for ib = 1:length(DIRKmethods)
    semilogx(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('NIters')
-   title(sprintf('Accuracy vs mass units (method = %s)',mname))
-   saveas(gcf, sprintf('timedep_M2-newton_vs_massunits-DIRK_b%i.png',ib))
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-DIRK_b%i.png',ib))
 end
 
 for ib = 1:length(ARKImethods)
@@ -373,9 +373,9 @@ for ib = 1:length(ARKImethods)
    k = squeeze(mean(k_data,2));
    semilogx(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
-   xlabel('Mass units: \gamma'), ylabel('accuracy')
-   title(sprintf('Newt Iters vs mass units (method = %s)',mname))
-   saveas(gcf, sprintf('timedep_M2-newton_vs_massunits-ARK_b%i.png',ib))
+   xlabel('Mass units: \gamma'), ylabel('NIters')
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-ARK_b%i.png',ib))
 end
 
 
@@ -497,7 +497,7 @@ for ib = 1:length(DIRKmethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('M(t)','I')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname))
@@ -526,7 +526,7 @@ for ib = 1:length(ARKImethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas),z,abs(lambdas),k)
+   loglog(abs(lambdas),z,abs(lambdas),k)
    legend('M(t)','I')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname1))
@@ -554,7 +554,7 @@ for ib = 1:length(ERKmethods)
    figure()
    z = squeeze(mean(z_data,2));
    k = squeeze(mean(k_data,2));
-   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   loglog(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
    legend('M(t)','I')
    xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
    title(sprintf('Accuracy vs stiffness (method = %s)',mname))
