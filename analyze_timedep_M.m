@@ -142,7 +142,7 @@ for ib = 1:length(ARKImethods)
    semilogx(gammas,z,gammas,k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('order')
-   title(sprintf('Measured order vs mass units (method = %s)',mname))
+   title(sprintf('Measured order vs mass units (method = %s)',mname1))
    saveas(gcf, sprintf('timedep_M-order_vs_massunits-ARK_b%i.png',ib))
 end
 
@@ -258,7 +258,7 @@ for ib = 1:length(ARKImethods)
    loglog(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('accuracy')
-   title(sprintf('Accuracy vs mass units (method = %s)',mname))
+   title(sprintf('Accuracy vs mass units (method = %s)',mname1))
    saveas(gcf, sprintf('timedep_M-accuracy_vs_massunits-ARK_b%i.png',ib))
 end
 
@@ -374,7 +374,7 @@ for ib = 1:length(ARKImethods)
    semilogx(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
    xlabel('Mass units: \gamma'), ylabel('NIters')
-   title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname1))
    saveas(gcf, sprintf('timedep_M-newton_vs_stiffness-ARK_b%i.png',ib))
 end
 
