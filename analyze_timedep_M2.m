@@ -16,6 +16,10 @@
 % All Rights Reserved
 clear
 
+% start output diary
+!\rm timedep_M2_analysis.txt
+diary timedep_M2_analysis.txt
+
 % load results:
 %   Test setup:
 %     lambdas = stiffness parameters
@@ -24,32 +28,32 @@ clear
 %     algs = solve for z (0) vs solve for k (1)
 %     DIRKmethods = DIRK Butcher tables (strings)
 %     ARKEmethods = ARK explicit Butcher tables (strings)
-%     ARKImethods = ARK ipmplicit Butcher tables (strings)
+%     ARKImethods = ARK implicit Butcher tables (strings)
 %     ERKmethods = ERK Butcher tables (strings)
 %   Results for M=M(t):
 %     DIRK_rmserrs(gammas,lambdas,DIRKmethods,algs,hvals)
 %     DIRK_lsolves(gammas,lambdas,DIRKmethods,algs,hvals)
 %     DIRK_ord(gammas,lambdas,DIRKmethods,algs)
 %     DIRK_ordred(gammas,lambdas,DIRKmethods,algs)
-%     ARK_rmserrs(gammas,lambdas,DIRKmethods,algs,hvals)
-%     ARK_lsolves(gammas,lambdas,DIRKmethods,algs,hvals)
-%     ARK_ord(gammas,lambdas,DIRKmethods,algs)
-%     ARK_ordred(gammas,lambdas,DIRKmethods,algs)
-%     ERK_rmserrs(gammas,lambdas,DIRKmethods,algs,hvals)
-%     ERK_ord(gammas,lambdas,DIRKmethods,algs)
-%     ERK_ordred(gammas,lambdas,DIRKmethods,algs)
+%     ARK_rmserrs(gammas,lambdas,ARKmethods,algs,hvals)
+%     ARK_lsolves(gammas,lambdas,ARKmethods,algs,hvals)
+%     ARK_ord(gammas,lambdas,ARKmethods,algs)
+%     ARK_ordred(gammas,lambdas,ARKmethods,algs)
+%     ERK_rmserrs(gammas,lambdas,ERKmethods,algs,hvals)
+%     ERK_ord(gammas,lambdas,ERKmethods,algs)
+%     ERK_ordred(gammas,lambdas,ERKmethods,algs)
 %   Results for M=I:
 %     DIRK_rmserrs_noM(lambdas,DIRKmethods,algs,hvals)
 %     DIRK_lsolves_noM(lambdas,DIRKmethods,algs,hvals)
 %     DIRK_ord_noM(lambdas,DIRKmethods,algs)
 %     DIRK_ordred_noM(lambdas,DIRKmethods,algs)
-%     ARK_rmserrs_noM(lambdas,DIRKmethods,algs,hvals)
-%     ARK_lsolves_noM(lambdas,DIRKmethods,algs,hvals)
-%     ARK_ord_noM(lambdas,DIRKmethods,algs)
-%     ARK_ordred_noM(lambdas,DIRKmethods,algs)
-%     ERK_rmserrs_noM(lambdas,DIRKmethods,algs,hvals)
-%     ERK_ord_noM(lambdas,DIRKmethods,algs)
-%     ERK_ordred_noM(lambdas,DIRKmethods,algs)
+%     ARK_rmserrs_noM(lambdas,ARKmethods,algs,hvals)
+%     ARK_lsolves_noM(lambdas,ARKmethods,algs,hvals)
+%     ARK_ord_noM(lambdas,ARKmethods,algs)
+%     ARK_ordred_noM(lambdas,ARKmethods,algs)
+%     ERK_rmserrs_noM(lambdas,ERKmethods,algs,hvals)
+%     ERK_ord_noM(lambdas,ERKmethods,algs)
+%     ERK_ordred_noM(lambdas,ERKmethods,algs)
 load timedep_M2_data.mat
 
 % set shortcut variables for testing array lengths
@@ -65,424 +69,315 @@ nERK = length(ERKmethods);
 fprintf('\n\nComparing solving for z against solving for k:\n');
 
 
-% Solution accuracy -- z
-fprintf('\n  Solution accuracy (z):\n');
+% Solution order
+fprintf('\nOrder of accuracy:\n');
 
-%    DIRK solver results
-d_data = DIRK_rmserrs(:,:,:,1,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = DIRK_ord(:,:,ib,1);
+   k_data = DIRK_ord(:,:,ib,2);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-order_vs_stiffness-DIRK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(gammas,z,gammas,k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('order')
+   title(sprintf('Measured order vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-order_vs_massunits-DIRK_b%i.png',ib))
+end
 
-%    ARK solver results
-a_data = ARK_rmserrs(:,:,:,1,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all'))
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = ARK_ord(:,:,ib,1);
+   k_data = ARK_ord(:,:,ib,2);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-order_vs_stiffness-ARK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(gammas,z,gammas,k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('order')
+   title(sprintf('Measured order vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-order_vs_massunits-ARK_b%i.png',ib))
+end
 
-%    ERK solver results
-e_data = ERK_rmserrs(:,:,:,1,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z)')
-title('Accuracy vs stiffness')
-saveas(gcf, 'z-error_vs_stiffness_m2.png')
-
-%    accuracy vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(z)')
-title('Accuracy vs mass matrix units')
-saveas(gcf, 'z-error_vs_massunits_m2.png')
-
-
-% Solution accuracy -- k
-fprintf('\n  Solution accuracy (k):\n');
-
-%    DIRK solver results
-d_data = DIRK_rmserrs(:,:,:,2,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_rmserrs(:,:,:,2,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all'))
-
-%    ERK solver results
-e_data = ERK_rmserrs(:,:,:,2,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(k)')
-title('Accuracy vs stiffness')
-saveas(gcf, 'k-error_vs_stiffness_m2.png')
-
-%    accuracy vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(z)./(k)')
-title('Accuracy vs mass matrix units')
-saveas(gcf, 'k-error_vs_massunits_m2.png')
-
-
-% Solution accuracy -- ratio
-fprintf('\n  Solution accuracy ratios (z)./(k):\n');
-
-%    DIRK solver results
-d_data = DIRK_rmserrs(:,:,:,1,:)./DIRK_rmserrs(:,:,:,2,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_rmserrs(:,:,:,1,:)./ARK_rmserrs(:,:,:,2,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all'))
-
-%    ERK solver results
-e_data = ERK_rmserrs(:,:,:,1,:)./ERK_rmserrs(:,:,:,2,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z)./(k)')
-title('Accuracy ratio vs stiffness')
-saveas(gcf, 'z_vs_k-error_vs_stiffness_m2.png')
-
-%    accuracy vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(z)./(k)')
-title('Accuracy ratio vs mass matrix units')
-saveas(gcf, 'z_vs_k-error_vs_massunits_m2.png')
+nlam = sum(abs(lambdas) <= 100);
+for ib = 1:length(ERKmethods)
+   mname = ERKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+   z_data = ERK_ord(:,1:nlam,ib,1);
+   k_data = ERK_ord(:,1:nlam,ib,2);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-order_vs_stiffness-ERK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(gammas,z,gammas,k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('order')
+   title(sprintf('Measured order vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-order_vs_massunits-ERK_b%i.png',ib))
+end
 
 
-% Newton iterations -- z
-fprintf('\n  Newton iterations (z):\n');
 
-%    DIRK solver results
-d_data = DIRK_lsolves(:,:,:,1,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+% Solution accuracy
+fprintf('\nAccuracy at smallest step size:\n');
 
-%    ARK solver results
-a_data = ARK_lsolves(:,:,:,1,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = DIRK_rmserrs(:,:,ib,1,end);
+   k_data = DIRK_rmserrs(:,:,ib,2,end);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_stiffness-DIRK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('accuracy')
+   title(sprintf('Accuracy vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_massunits-DIRK_b%i.png',ib))
+end
 
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z)')
-title('Newton iterations vs stiffness')
-saveas(gcf, 'z-newton_vs_stiffness_m2.png')
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = ARK_rmserrs(:,:,ib,1,end);
+   k_data = ARK_rmserrs(:,:,ib,2,end);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_stiffness-ARK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('accuracy')
+   title(sprintf('Accuracy vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_massunits-ARK_b%i.png',ib))
+end
 
-%    Newton iterations vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-semilogx(gammas,d,gammas,a)
-legend('DIRK','ARK')
-xlabel('Mass units: \gamma'), ylabel('(z)')
-title('Newton iterations vs mass matrix units')
-saveas(gcf, 'z-newton_vs_massunits_m2.png')
-
-
-% Newton iterations -- k
-fprintf('\n  Newton iterations (k):\n');
-
-%    DIRK solver results
-d_data = DIRK_lsolves(:,:,:,2,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_lsolves(:,:,:,2,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(k)')
-title('Newton iterations vs stiffness')
-saveas(gcf, 'k-newton_vs_stiffness_m2.png')
-
-%    Newton iterations vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-semilogx(gammas,d,gammas,a)
-legend('DIRK','ARK')
-xlabel('Mass units: \gamma'), ylabel('(k)')
-title('Newton iterations vs mass matrix units')
-saveas(gcf, 'k-newton_vs_massunits_m2.png')
-
-
-% Newton iterations -- ratio
-fprintf('\n  Newton iteration ratios (z)./(k):\n');
-
-%    DIRK solver results
-d_data = DIRK_lsolves(:,:,:,1,:)./DIRK_lsolves(:,:,:,2,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_lsolves(:,:,:,1,:)./ARK_lsolves(:,:,:,2,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z)./(k)')
-title('Newton iteration ratio vs stiffness')
-saveas(gcf, 'z_vs_k-newton_vs_stiffness_m2.png')
-
-%    Newton iterations vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-semilogx(gammas,d,gammas,a)
-legend('DIRK','ARK')
-xlabel('Mass units: \gamma'), ylabel('(z)./(k)')
-title('Newton iteration ratio vs mass matrix units')
-saveas(gcf, 'z_vs_k-newton_vs_massunits_m2.png')
+nlam = sum(abs(lambdas) <= 100);
+for ib = 1:length(ERKmethods)
+   mname = ERKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+   z_data = ERK_rmserrs(:,1:nlam,ib,1,end);
+   k_data = ERK_rmserrs(:,1:nlam,ib,2,end);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_stiffness-ERK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('accuracy')
+   title(sprintf('Accuracy vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-accuracy_vs_massunits-ERK_b%i.png',ib))
+end
 
 
-% order reduction -- z
-fprintf('\n  Order reduction (z):\n');
 
-%    DIRK solver results
-d_data = DIRK_ordred(:,:,:,1);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+% Newton iterations at smallest step size
+fprintf('\nNewton iterations at smallest step size:\n');
 
-%    ARK solver results
-a_data = ARK_ordred(:,:,:,1);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = DIRK_lsolves(:,:,ib,1,end);
+   k_data = DIRK_lsolves(:,:,ib,2,end);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-DIRK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('NIters')
+   title(sprintf('Accuracy vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_massunits-DIRK_b%i.png',ib))
+end
 
-%    ERK solver results
-e_data = ERK_ordred(:,:,:,1);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = ARK_lsolves(:,:,ib,1,end);
+   k_data = ARK_lsolves(:,:,ib,2,end);
+   fprintf('      (z): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('      (k): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,1));
+   k = squeeze(mean(k_data,1));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-ARK_b%i.png',ib))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('(z)','(k)')
+   xlabel('Mass units: \gamma'), ylabel('accuracy')
+   title(sprintf('Newt Iters vs mass units (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-newton_vs_massunits-ARK_b%i.png',ib))
+end
 
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z)')
-title('Order reduction vs stiffness')
-saveas(gcf, 'z-ordred_vs_stiffness_m2.png')
-
-%    order reduction vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(z)')
-title('Order reduction vs mass matrix units')
-saveas(gcf, 'z-ordred_vs_massunits_m2.png')
-
-
-% order reduction -- k
-fprintf('\n  Order reduction (k):\n');
-
-%    DIRK solver results
-d_data = DIRK_ordred(:,:,:,2);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_ordred(:,:,:,2);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = ERK_ordred(:,:,:,2);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(k)')
-title('Order difference vs stiffness')
-saveas(gcf, 'k-ordred_vs_stiffness_m2.png')
-
-%    order reduction vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(k)')
-title('Order reduction vs mass matrix units')
-saveas(gcf, 'k-ordred_vs_massunits_m2.png')
-
-
-% order reduction -- difference
-fprintf('\n  Order reduction difference (z - k):\n');
-
-%    DIRK solver results
-d_data = DIRK_ordred(:,:,:,1) - DIRK_ordred(:,:,:,2);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_ordred(:,:,:,1) - ARK_ordred(:,:,:,2);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = ERK_ordred(:,:,:,1) - ERK_ordred(:,:,:,2);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),1));
-a = squeeze(mean(mean(mean(a_data,5),3),1));
-e = squeeze(mean(mean(mean(e_data,5),3),1));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(z - k)')
-title('Order reduction difference vs stiffness')
-saveas(gcf, 'z_vs_k-ordred_vs_stiffness_m2.png')
-
-%    order reduction vs mass matrix units (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,5),3),2));
-a = squeeze(mean(mean(mean(a_data,5),3),2));
-e = squeeze(mean(mean(mean(e_data,5),3),2));
-semilogx(gammas,d,gammas,a,gammas,e)
-legend('DIRK','ARK','ERK')
-xlabel('Mass units: \gamma'), ylabel('(z - k)')
-title('Order reduction difference vs mass matrix units')
-saveas(gcf, 'z_vs_k-ordred_vs_massunits_m2.png')
 
 
 
@@ -490,330 +385,244 @@ saveas(gcf, 'z_vs_k-ordred_vs_massunits_m2.png')
 %--- M=I vs M=M(t) ---%
 fprintf('\n\nComparing M=I vs M=M(t) (for fixed gamma = %g):\n', gammas(end));
 
+% Solution order
+fprintf('\nOrder of accuracy:\n');
 
-% Solution accuracy -- M(t)
-fprintf('\n  Solution accuracy (M(t)):\n');
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = squeeze(DIRK_ord(end,:,ib,:));
+   k_data = squeeze(DIRK_ord_noM(:,ib,:));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-MvsI-order_vs_stiffness-DIRK_b%i.png',ib))
+end
 
-%    DIRK solver results
-d_data = squeeze(DIRK_rmserrs(end,:,:,:,:));
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = squeeze(ARK_ord(end,:,ib,:));
+   k_data = squeeze(ARK_ord_noM(:,ib,:));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-MvsI-order_vs_stiffness-ARK_b%i.png',ib))
+end
 
-%    ARK solver results
-a_data = squeeze(ARK_rmserrs(end,:,:,:,:));
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = squeeze(ERK_rmserrs(end,:,:,:,:));
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t))')
-title('Accuracy vs stiffness')
-saveas(gcf, 'Mt-error_vs_stiffness_m2.png')
-
-
-% Solution accuracy -- I
-fprintf('\n  Solution accuracy (I):\n');
-
-%    DIRK solver results
-d_data = DIRK_rmserrs_noM(:,:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_rmserrs_noM(:,:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = ERK_rmserrs_noM(:,:,:,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(I)')
-title('Accuracy vs stiffness')
-saveas(gcf, 'I-error_vs_stiffness_m2.png')
-
-
-% Solution accuracy -- ratio
-fprintf('\n  Solution accuracy ratios (M(t))./(I):\n');
-
-%    DIRK solver results
-d_data = squeeze(DIRK_rmserrs(end,:,:,:,:))./DIRK_rmserrs_noM(:,:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = squeeze(ARK_rmserrs(end,:,:,:,:))./ARK_rmserrs_noM(:,:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = squeeze(ERK_rmserrs(end,:,:,:,:))./ERK_rmserrs_noM(:,:,:,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    accuracy vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t))./(I)')
-title('Accuracy ratio vs stiffness')
-saveas(gcf, 'Mt_vs_I-error_vs_stiffness_m2.png')
-
-
-% Newton iterations -- M(t)
-fprintf('\n  Newton iterations (M(t)):\n');
-
-%    DIRK solver results
-d_data = squeeze(DIRK_lsolves(end,:,:,:,:));
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = squeeze(ARK_lsolves(end,:,:,:,:));
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t))')
-title('Newton iterations vs stiffness')
-saveas(gcf, 'Mt-newton_vs_stiffness_m2.png')
-
-
-% Newton iterations -- I
-fprintf('\n  Newton iterations (I):\n');
-
-%    DIRK solver results
-d_data = DIRK_lsolves_noM(:,:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = ARK_lsolves_noM(:,:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(I)')
-title('Newton iterations vs stiffness')
-saveas(gcf, 'I-newton_vs_stiffness_m2.png')
-
-
-% Newton iterations -- ratio
-fprintf('\n  Newton iteration ratios (M(t))./(I):\n');
-
-%    DIRK solver results
-d_data = squeeze(DIRK_lsolves(end,:,:,:,:))./DIRK_lsolves_noM(:,:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = squeeze(ARK_lsolves(end,:,:,:,:))./ARK_lsolves_noM(:,:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    Newton iterations vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a)
-legend('DIRK','ARK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t))./(I)')
-title('Newton iteration ratio vs stiffness')
-saveas(gcf, 'Mt_vs_I-newton_vs_stiffness_m2.png')
-
-
-% order reduction -- M(t)
-fprintf('\n  Order reduction (M(t)):\n');
-
-%    DIRK solver results
-d_data = squeeze(DIRK_ordred(end,:,:,:));
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
-
-%    ARK solver results
-a_data = squeeze(ARK_ordred(end,:,:,:));
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = squeeze(ERK_ordred(end,:,:,:));
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t))')
-title('Order reduction vs stiffness')
-saveas(gcf, 'Mt-ordred_vs_stiffness_m2.png')
+nlam = sum(abs(lambdas) <= 100);
+for ib = 1:length(ERKmethods)
+   mname = ERKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+   z_data = squeeze(ERK_ord(end,1:nlam,ib,:));
+   k_data = squeeze(ERK_ord_noM(1:nlam,ib,:));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('order')
+   title(sprintf('Measured order vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-MvsI-order_vs_stiffness-ERK_b%i.png',ib))
+end
 
 
 
-% order reduction -- I
-fprintf('\n  Order reduction (I):\n');
+% Solution accuracy
+fprintf('\nAccuracy at smallest step size:\n');
 
-%    DIRK solver results
-d_data = DIRK_ordred_noM(:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = squeeze(DIRK_rmserrs(end,:,ib,:,end));
+   k_data = squeeze(DIRK_rmserrs_noM(:,ib,:,end));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-MvsI-accuracy_vs_stiffness-DIRK_b%i.png',ib))
+end
 
-%    ARK solver results
-a_data = ARK_ordred_noM(:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = squeeze(ARK_rmserrs(end,:,ib,:,end));
+   k_data = squeeze(ARK_rmserrs_noM(:,ib,:,end));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-MvsI-accuracy_vs_stiffness-ARK_b%i.png',ib))
+end
 
-%    ERK solver results
-e_data = ERK_ordred_noM(:,:,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
+nlam = sum(abs(lambdas) <= 100);
+for ib = 1:length(ERKmethods)
+   mname = ERKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  ERK integrator: %s (order = %i)\n',mname,q)
+   z_data = squeeze(ERK_rmserrs(end,1:nlam,ib,:,end));
+   k_data = squeeze(ERK_rmserrs_noM(1:nlam,ib,:,end));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas(1:nlam)),z,abs(lambdas(1:nlam)),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('accuracy')
+   title(sprintf('Accuracy vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-MvsI-accuracy_vs_stiffness-ERK_b%i.png',ib))
+end
 
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(I)')
-title('Order reduction vs stiffness')
-saveas(gcf, 'I-ordred_vs_stiffness_m2.png')
 
 
+% Newton iterations at smallest step size
+fprintf('\nNewton iterations at smallest step size:\n');
 
-% order reduction -- difference
-fprintf('\n  Order reduction difference (M(t) - I):\n');
+for ib = 1:length(DIRKmethods)
+   mname = DIRKmethods{ib};
+   B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+   fprintf('\n  DIRK integrator: %s (order = %i)\n',mname,q)
+   z_data = squeeze(DIRK_lsolves(end,:,ib,:,end));
+   k_data = squeeze(DIRK_lsolves_noM(:,ib,:,end));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
+   saveas(gcf, sprintf('timedep_M2-MvsI-newton_vs_stiffness-DIRK_b%i.png',ib))
+end
 
-%    DIRK solver results
-d_data = squeeze(DIRK_ordred(end,:,:,:)) - DIRK_ordred_noM(:,:,:);
-fprintf('    DIRK: mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(d_data,'all','omitnan'), ...
-        min(d_data,[],'all','omitnan'), ...
-        max(d_data,[],'all','omitnan'), ...
-        std(d_data,0,'all','omitnan'))
+for ib = 1:length(ARKImethods)
+   mname1 = ARKEmethods{ib};
+   Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+   mname2 = ARKImethods{ib};
+   Bi = butcher(mname2);
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   z_data = squeeze(ARK_lsolves(end,:,ib,:,end));
+   k_data = squeeze(ARK_lsolves_noM(:,ib,:,end));
+   fprintf('      M(t): mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(z_data,'all','omitnan'), ...
+           min(z_data,[],'all','omitnan'), ...
+           max(z_data,[],'all','omitnan'), ...
+           std(z_data,0,'all','omitnan'))
+   fprintf('         I: mean = %g, min = %g, max = %g, std = %g\n', ...
+           mean(k_data,'all','omitnan'), ...
+           min(k_data,[],'all','omitnan'), ...
+           max(k_data,[],'all','omitnan'), ...
+           std(k_data,0,'all','omitnan'))
+   
+   figure()
+   z = squeeze(mean(z_data,2));
+   k = squeeze(mean(k_data,2));
+   semilogx(abs(lambdas),z,abs(lambdas),k)
+   legend('M(t)','I')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
+   title(sprintf('Newt Iters vs stiffness (method = %s)',mname1))
+   saveas(gcf, sprintf('timedep_M2-MvsI-newton_vs_stiffness-ARK_b%i.png',ib))
+end
 
-%    ARK solver results
-a_data = squeeze(ARK_ordred(end,:,:,:)) - ARK_ordred_noM(:,:,:);
-fprintf('    ARK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(a_data,'all','omitnan'), ...
-        min(a_data,[],'all','omitnan'), ...
-        max(a_data,[],'all','omitnan'), ...
-        std(a_data,0,'all','omitnan'))
-
-%    ERK solver results
-e_data = squeeze(ERK_ordred(end,:,:,:)) - ERK_ordred_noM(:,:,:);
-fprintf('    ERK:  mean = %g, min = %g, max = %g, std = %g\n', ...
-        mean(e_data,'all','omitnan'), ...
-        min(e_data,[],'all','omitnan'), ...
-        max(e_data,[],'all','omitnan'), ...
-        std(e_data,0,'all','omitnan'))
-
-%    order reduction vs stiffness (average over all other parameters)
-figure()
-d = squeeze(mean(mean(mean(d_data,4),3),2));
-a = squeeze(mean(mean(mean(a_data,4),3),2));
-e = squeeze(mean(mean(mean(e_data,4),3),2));
-semilogx(abs(lambdas),d,abs(lambdas),a,abs(lambdas(1:length(e))),e)
-legend('DIRK','ARK','ERK')
-xlabel('Stiffness: |\lambda|'), ylabel('(M(t) - I)')
-title('Order reduction difference vs stiffness')
-saveas(gcf, 'Mt_vs_I-ordred_vs_stiffness_m2.png')
+% close diary
+diary off
 
 % end of script

@@ -14,6 +14,10 @@
 % All Rights Reserved
 clear
 
+% start output diary
+!\rm timedep_bdry_analysis.txt
+diary timedep_bdry_analysis.txt
+
 % load results:
 %   Test setup:
 %     lambdas = stiffness parameters
@@ -218,5 +222,7 @@ for ib = 1:length(ERKmethods)
    saveas(gcf, sprintf('timedep_bdry-accuracy_vs_stiffness-ERK_b%i.png',ib))
 end
 
+% close diary
+diary off
 
 % end of script
