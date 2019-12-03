@@ -335,7 +335,7 @@ for ib = 1:length(DIRKmethods)
    k = squeeze(mean(k_data,2));
    semilogx(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
-   xlabel('Mass units: \gamma'), ylabel('NIters')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
    title(sprintf('Newt Iters vs stiffness (method = %s)',mname))
    saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-DIRK_b%i.png',ib))
 end
@@ -373,7 +373,7 @@ for ib = 1:length(ARKImethods)
    k = squeeze(mean(k_data,2));
    semilogx(abs(lambdas),z,abs(lambdas),k)
    legend('(z)','(k)')
-   xlabel('Mass units: \gamma'), ylabel('NIters')
+   xlabel('Stiffness: |\lambda|'), ylabel('NIters')
    title(sprintf('Newt Iters vs stiffness (method = %s)',mname1))
    saveas(gcf, sprintf('timedep_M2-newton_vs_stiffness-ARK_b%i.png',ib))
 end

@@ -13,7 +13,7 @@
 %    e = 0.5
 %    lambda = [-10, -100, -1000, ...]
 % The stiffness of the problem is directly proportional to the
-% value of "G".  The 'units' of the mass matrix are
+% value of "lambda".  The 'units' of the mass matrix are
 % proportional to the value of "gamma".
 %
 % Note: to get a 'baseline' value of order reduction for each RK

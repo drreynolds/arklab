@@ -1,8 +1,8 @@
 % Driver for heat equation with time-dependent boundary conditions:
-%      u_t = lambda*u_xx + f,  0<x<pi,  0<t<4/lambda
+%      u_t = lambda*u_xx + f,  0<x<pi,  0<t<5/lambda
 %      u(0,x) = 0,             0<x<pi,
-%      u(t,0) = b1(t),                  0<t<4/lambda
-%      u(t,pi) = b2(t),                 0<t<4/lambda
+%      u(t,0) = b1(t),                  0<t<5/lambda
+%      u(t,pi) = b2(t),                 0<t<5/lambda
 % The forcing and boundary terms have the form
 %    f(t,x) = \sum_{k=1}^M c_k \cos(kx)
 %    b1(t)  = \sum_{k=1}^M c_k/(lambda*k^2) (1 - e^{-t*lambda*k^2})
