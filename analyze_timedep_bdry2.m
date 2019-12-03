@@ -90,7 +90,7 @@ for ib = 1:length(ARKImethods)
    Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
    mname2 = ARKImethods{ib};
    Bi = butcher(mname2);
-   fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
    r_data = ARK_recommended_ord(:,ib);
    f_data = ARK_forced_ord(:,ib);
    fprintf('      recommended: mean = %g, min = %g, max = %g, std = %g\n', ...
@@ -174,7 +174,7 @@ for ib = 1:length(ARKImethods)
    Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
    mname2 = ARKImethods{ib};
    Bi = butcher(mname2);
-   fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+   fprintf('\n  ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
    r_data = ARK_recommended_rmserrs(:,ib,end);
    f_data = ARK_forced_rmserrs(:,ib,end);
    fprintf('      recommended: mean = %g, min = %g, max = %g, std = %g\n', ...
