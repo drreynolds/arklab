@@ -39,8 +39,8 @@ if (bDotApprox.nstored == 0)
 
 % on other calls, only update approximation structure at new "t" value
 else
-  if (min(abs(t-bDotApprox.t)) > 100*eps)
-    [!,i] = max(abs(t-bDotApprox.t));
+  if (min(abs(t-bDotApprox.t)) > 10*sqrt(eps))
+    [~,i] = max(abs(t-bDotApprox.t));
     bDotApprox.b1(i) = Pdata.b1(t);
     bDotApprox.b2(i) = Pdata.b2(t);
     bDotApprox.t(i) = t;
