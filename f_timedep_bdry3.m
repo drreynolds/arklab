@@ -54,13 +54,50 @@ else
 end
 
 % left boundary
-p = polyfit(bDotApprox.t, bDotApprox.b1, bDotApprox.nmax-1);
-dp = polyder(p);
-udot(1) = polyval(dp,t);
+udot(1) = interp_deriv(bDotApprox.t, bDotApprox.b1, t);
 
 % right boundary
-p = polyfit(bDotApprox.t, bDotApprox.b2, bDotApprox.nmax-1);
-dp = polyder(p);
-udot(m) = polyval(dp,t);
+udot(m) = interp_deriv(bDotApprox.t, bDotApprox.b2, t);
+
+
+
+function dp = interp_deriv(x,y,t)
+% This routine evaluates the first-derivative of the
+% Newton interpolating polynomial, p'(t).
+%
+% Inputs:   x   nodal locations [array of length n] 
+%               (assume x(i) ~= x(j) for i ~= j)
+%           y   data values [array of length n]
+%           t   evaluation point
+% Output:   dp  p'(t)
+
+% compute Newton coefficients using divided differences; 
+% store in matrix d (diagonal holds Newton coefficients)
+n = length(x);
+d = zeros(n, n);              % initialize d
+d(:,1) = reshape(y, n, 1);    % fill first column with contents of y
+for j=2:n
+   for i=j:n                  % perform divided-differences algorithm
+      d(i,j) = (d(i-1,j-1) - d(i,j-1)) / (x(i-j+1) - x(i));
+   end
+end
+
+% evaluate reusable factors
+dt = t-x;
+
+% evaluate Newton polynomial derivative
+dp = 0;
+for i=1:n
+  dphi = 0;
+  for k=1:i-1
+    tprod = 1;
+    for j=1:i-1
+      if (j == k), continue, end
+      tprod = tprod * dt(j);
+    end
+    dphi = dphi + tprod;
+  end
+  dp = dp + d(i,i)*dphi;
+end
 
 % end function

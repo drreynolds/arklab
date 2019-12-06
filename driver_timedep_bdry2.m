@@ -364,6 +364,7 @@ for il = 1:length(lambdas)
    fi = @fi_timedep_bdry;
    Jn = @J_timedep_bdry;
    Ji = @J_timedep_bdry;
+   global bDotApprox
 
    % run DIRK tests
    if (length(DIRKmethods) > 0)
@@ -377,9 +378,8 @@ for il = 1:length(lambdas)
          for ih = 1:length(hvals)
             hval = hvals(ih)/lambda;
             fprintf('      h = %.5e,',hval);
-            global bDotApprox
+            bDotApprox.nmax = max(3,q);
             bDotApprox.nstored = 0;
-            bDotApprox.nmax = 3;
             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
             bDotApprox.t = zeros(bDotApprox.nmax,1);
@@ -420,9 +420,8 @@ for il = 1:length(lambdas)
          for ih = 1:length(hvals)
             hval = hvals(ih)/lambda;
             fprintf('      h = %.5e,',hval);
-            global bDotApprox
+            bDotApprox.nmax = max(3,q);
             bDotApprox.nstored = 0;
-            bDotApprox.nmax = 3;
             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
             bDotApprox.t = zeros(bDotApprox.nmax,1);
@@ -461,9 +460,8 @@ for il = 1:length(lambdas)
          for ih = 1:length(hvals)
             hval = hvals(ih)/lambda/20;
             fprintf('      h = %.5e,',hval);
-            global bDotApprox
+            bDotApprox.nmax = max(3,q);
             bDotApprox.nstored = 0;
-            bDotApprox.nmax = 3;
             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
             bDotApprox.t = zeros(bDotApprox.nmax,1);
