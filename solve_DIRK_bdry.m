@@ -374,7 +374,7 @@ function Amat = Jres(zcor, Fdata)
 
 z = Fdata.zpred + zcor;
 Amat = eye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.J(Fdata.tcur, z);
-n = lenth(zcor);
+n = length(zcor);
 Amat(1,:) = zeros(1,n);
 Amat(n,:) = zeros(1,n);
 Amat(:,1) = zeros(n,1);
