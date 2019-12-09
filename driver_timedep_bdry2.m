@@ -28,6 +28,9 @@ store_output = true;
 run_natural = true;
 run_forced = true;
 run_approx = true;
+run_dirk = true;
+run_ark = true;
+run_erk = true;
 
 % start output diary
 if (create_diary)
@@ -66,35 +69,41 @@ fprintf('    tolerances:  rtol = %g,  atol = %g\n', rtol, atol(1));
 
 
 % create 'statistics' storage
-DIRK_natural_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
-DIRK_natural_ord = zeros(length(lambdas),length(DIRKmethods));
-DIRK_natural_ordred = zeros(length(lambdas),length(DIRKmethods));
-DIRK_forced_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
-DIRK_forced_ord = zeros(length(lambdas),length(DIRKmethods));
-DIRK_forced_ordred = zeros(length(lambdas),length(DIRKmethods));
-DIRK_approx_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
-DIRK_approx_ord = zeros(length(lambdas),length(DIRKmethods));
-DIRK_approx_ordred = zeros(length(lambdas),length(DIRKmethods));
+if (run_dirk)
+  DIRK_natural_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
+  DIRK_natural_ord = zeros(length(lambdas),length(DIRKmethods));
+  DIRK_natural_ordred = zeros(length(lambdas),length(DIRKmethods));
+  DIRK_forced_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
+  DIRK_forced_ord = zeros(length(lambdas),length(DIRKmethods));
+  DIRK_forced_ordred = zeros(length(lambdas),length(DIRKmethods));
+  DIRK_approx_rmserrs = zeros(length(lambdas),length(DIRKmethods),length(hvals));
+  DIRK_approx_ord = zeros(length(lambdas),length(DIRKmethods));
+  DIRK_approx_ordred = zeros(length(lambdas),length(DIRKmethods));
+end
 
-ARK_natural_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
-ARK_natural_ord = zeros(length(lambdas),length(ARKEmethods));
-ARK_natural_ordred = zeros(length(lambdas),length(ARKEmethods));
-ARK_forced_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
-ARK_forced_ord = zeros(length(lambdas),length(ARKEmethods));
-ARK_forced_ordred = zeros(length(lambdas),length(ARKEmethods));
-ARK_approx_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
-ARK_approx_ord = zeros(length(lambdas),length(ARKEmethods));
-ARK_approx_ordred = zeros(length(lambdas),length(ARKEmethods));
+if (run_ark)
+  ARK_natural_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
+  ARK_natural_ord = zeros(length(lambdas),length(ARKEmethods));
+  ARK_natural_ordred = zeros(length(lambdas),length(ARKEmethods));
+  ARK_forced_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
+  ARK_forced_ord = zeros(length(lambdas),length(ARKEmethods));
+  ARK_forced_ordred = zeros(length(lambdas),length(ARKEmethods));
+  ARK_approx_rmserrs = zeros(length(lambdas),length(ARKEmethods),length(hvals));
+  ARK_approx_ord = zeros(length(lambdas),length(ARKEmethods));
+  ARK_approx_ordred = zeros(length(lambdas),length(ARKEmethods));
+end
 
-ERK_natural_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
-ERK_natural_ord = zeros(length(lambdas),length(ERKmethods));
-ERK_natural_ordred = zeros(length(lambdas),length(ERKmethods));
-ERK_forced_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
-ERK_forced_ord = zeros(length(lambdas),length(ERKmethods));
-ERK_forced_ordred = zeros(length(lambdas),length(ERKmethods));
-ERK_approx_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
-ERK_approx_ord = zeros(length(lambdas),length(ERKmethods));
-ERK_approx_ordred = zeros(length(lambdas),length(ERKmethods));
+if (run_erk)
+  ERK_natural_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
+  ERK_natural_ord = zeros(length(lambdas),length(ERKmethods));
+  ERK_natural_ordred = zeros(length(lambdas),length(ERKmethods));
+  ERK_forced_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
+  ERK_forced_ord = zeros(length(lambdas),length(ERKmethods));
+  ERK_forced_ordred = zeros(length(lambdas),length(ERKmethods));
+  ERK_approx_rmserrs = zeros(length(lambdas),length(ERKmethods),length(hvals));
+  ERK_approx_ord = zeros(length(lambdas),length(ERKmethods));
+  ERK_approx_ordred = zeros(length(lambdas),length(ERKmethods));
+end
 
 % loop over stiffness parameters
 for il = 1:length(lambdas)
@@ -146,106 +155,112 @@ for il = 1:length(lambdas)
      fprintf('\n  Results with natural approach:\n')
 
      % run DIRK tests
-     if (length(DIRKmethods) > 0)
-       for ib = 1:length(DIRKmethods)
+     if (run_dirk)
+       if (length(DIRKmethods) > 0)
+         for ib = 1:length(DIRKmethods)
 
-         mname = DIRKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname = DIRKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             DIRK_natural_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           DIRK_natural_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           DIRK_natural_ord(il,ib) = ord;
+           DIRK_natural_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         DIRK_natural_ord(il,ib) = ord;
-         DIRK_natural_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ARK tests
-     if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
-       for ib = 1:length(ARKImethods)
+     if (run_ark)
+       if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
+         for ib = 1:length(ARKImethods)
 
-         mname1 = ARKEmethods{ib};
-         Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
-         mname2 = ARKImethods{ib};
-         Bi = butcher(mname2);
-         fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname1 = ARKEmethods{ib};
+           Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+           mname2 = ARKImethods{ib};
+           Bi = butcher(mname2);
+           fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ARK_natural_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           ARK_natural_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ARK_natural_ord(il,ib) = ord;
+           ARK_natural_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ARK_natural_ord(il,ib) = ord;
-         ARK_natural_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ERK tests
-     if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
-       for ib = 1:length(ERKmethods)
-         mname = ERKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
-         errs_rms = zeros(size(hvals));
-         errs_max = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda/20;
-           fprintf('      h = %.5e,',hval);
-           [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+     if (run_erk)
+       if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
+         for ib = 1:length(ERKmethods)
+           mname = ERKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
+           errs_rms = zeros(size(hvals));
+           errs_max = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda/20;
+             fprintf('      h = %.5e,',hval);
+             [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ERK_natural_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      temporal error fails = %i\n',af);
            end
-           ARK_natural_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      temporal error fails = %i\n',af);
-         end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ERK_natural_ord(il,ib) = ord;
-         ERK_natural_ordred(il,ib) = max(0,q-ord);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ERK_natural_ord(il,ib) = ord;
+           ERK_natural_ordred(il,ib) = max(0,q-ord);
 
+         end
        end
      end
    end
@@ -263,106 +278,112 @@ for il = 1:length(lambdas)
      bdry = @enforce_timedep_bdry2;
 
      % run DIRK tests
-     if (length(DIRKmethods) > 0)
-       for ib = 1:length(DIRKmethods)
+     if (run_dirk)
+       if (length(DIRKmethods) > 0)
+         for ib = 1:length(DIRKmethods)
 
-         mname = DIRKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, hval, hval);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname = DIRKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             [t,Y,ns,nl,cf,af] = solve_DIRK_bdry(fn, Jn, bdry, tout, Y0, B, rtol, atol, hval, hval);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             DIRK_forced_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           DIRK_forced_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           DIRK_forced_ord(il,ib) = ord;
+           DIRK_forced_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         DIRK_forced_ord(il,ib) = ord;
-         DIRK_forced_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ARK tests
-     if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
-       for ib = 1:length(ARKImethods)
+     if (run_ark)
+       if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
+         for ib = 1:length(ARKImethods)
 
-         mname1 = ARKEmethods{ib};
-         Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
-         mname2 = ARKImethods{ib};
-         Bi = butcher(mname2);
-         fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, hval, hval);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname1 = ARKEmethods{ib};
+           Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+           mname2 = ARKImethods{ib};
+           Bi = butcher(mname2);
+           fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             [t,Y,ns,nl,cf,af] = solve_ARK_bdry(fe, fi, Ji, bdry, tout, Y0, Be, Bi, rtol, atol, hval, hval);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ARK_forced_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           ARK_forced_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ARK_forced_ord(il,ib) = ord;
+           ARK_forced_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ARK_forced_ord(il,ib) = ord;
-         ARK_forced_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ERK tests
-     if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
-       for ib = 1:length(ERKmethods)
-         mname = ERKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
-         errs_rms = zeros(size(hvals));
-         errs_max = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda/100;
-           fprintf('   h = %.5e,',hval);
-           [t,Y,ns,af] = solve_ERK_bdry(fn, Es, bdry, tout, Y0, B, rtol, atol, hval, hval);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+     if (run_erk)
+       if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
+         for ib = 1:length(ERKmethods)
+           mname = ERKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
+           errs_rms = zeros(size(hvals));
+           errs_max = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda/100;
+             fprintf('   h = %.5e,',hval);
+             [t,Y,ns,af] = solve_ERK_bdry(fn, Es, bdry, tout, Y0, B, rtol, atol, hval, hval);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ERK_forced_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      temporal error fails = %i\n',af);
            end
-           ARK_forced_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      temporal error fails = %i\n',af);
-         end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ERK_forced_ord(il,ib) = ord;
-         ERK_forced_ordred(il,ib) = max(0,q-ord);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ERK_forced_ord(il,ib) = ord;
+           ERK_forced_ordred(il,ib) = max(0,q-ord);
 
+         end
        end
      end
    end
@@ -381,124 +402,130 @@ for il = 1:length(lambdas)
      global bDotApprox
 
      % run DIRK tests
-     if (length(DIRKmethods) > 0)
-       for ib = 1:length(DIRKmethods)
+     if (run_dirk)
+       if (length(DIRKmethods) > 0)
+         for ib = 1:length(DIRKmethods)
 
-         mname = DIRKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           bDotApprox.nmax = max(3,q);
-           bDotApprox.nstored = 0;
-           bDotApprox.b1 = zeros(bDotApprox.nmax,1);
-           bDotApprox.b2 = zeros(bDotApprox.nmax,1);
-           bDotApprox.t = zeros(bDotApprox.nmax,1);
-           bDotApprox.h = hval;
-           [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname = DIRKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n    DIRK integrator: %s (order = %i)\n',mname,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             bDotApprox.nmax = max(3,q);
+             bDotApprox.nstored = 0;
+             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
+             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
+             bDotApprox.t = zeros(bDotApprox.nmax,1);
+             bDotApprox.h = hval;
+             [t,Y,ns,nl,cf,af] = solve_DIRK(fn, Jn, tout, Y0, B, rtol, atol, hval, hval, 0);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             DIRK_approx_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           DIRK_approx_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           DIRK_approx_ord(il,ib) = ord;
+           DIRK_approx_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         DIRK_approx_ord(il,ib) = ord;
-         DIRK_approx_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ARK tests
-     if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
-       for ib = 1:length(ARKImethods)
+     if (run_ark)
+       if ((length(ARKImethods) == length(ARKEmethods)) && (length(ARKImethods)>0))
+         for ib = 1:length(ARKImethods)
 
-         mname1 = ARKEmethods{ib};
-         Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
-         mname2 = ARKImethods{ib};
-         Bi = butcher(mname2);
-         fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
-         errs = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda;
-           fprintf('      h = %.5e,',hval);
-           bDotApprox.nmax = max(3,q);
-           bDotApprox.nstored = 0;
-           bDotApprox.b1 = zeros(bDotApprox.nmax,1);
-           bDotApprox.b2 = zeros(bDotApprox.nmax,1);
-           bDotApprox.t = zeros(bDotApprox.nmax,1);
-           bDotApprox.h = hval;
-           [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+           mname1 = ARKEmethods{ib};
+           Be = butcher(mname1);  s = numel(Be(1,:))-1;  q = Be(s+1,1);
+           mname2 = ARKImethods{ib};
+           Bi = butcher(mname2);
+           fprintf('\n    ARK integrator: %s/%s (order = %i)\n',mname1,mname2,q)
+           errs = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda;
+             fprintf('      h = %.5e,',hval);
+             bDotApprox.nmax = max(3,q);
+             bDotApprox.nstored = 0;
+             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
+             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
+             bDotApprox.t = zeros(bDotApprox.nmax,1);
+             bDotApprox.h = hval;
+             [t,Y,ns,nl,cf,af] = solve_ARK(fe, fi, Ji, tout, Y0, Be, Bi, rtol, atol, hval, hval, 0);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ARK_approx_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
            end
-           ARK_approx_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      newton conv fails = %i, temporal error fails = %i\n',cf,af);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ARK_approx_ord(il,ib) = ord;
+           ARK_approx_ordred(il,ib) = max(0,q-ord);
+
          end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ARK_approx_ord(il,ib) = ord;
-         ARK_approx_ordred(il,ib) = max(0,q-ord);
-
        end
      end
-
+     
      % run ERK tests
-     if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
-       for ib = 1:length(ERKmethods)
-         mname = ERKmethods{ib};
-         B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
-         fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
-         errs_rms = zeros(size(hvals));
-         errs_max = zeros(size(hvals));
-         order = zeros(length(hvals)-1,1);
-         for ih = 1:length(hvals)
-           hval = hvals(ih)/lambda/20;
-           fprintf('      h = %.5e,',hval);
-           bDotApprox.nmax = max(3,q);
-           bDotApprox.nstored = 0;
-           bDotApprox.b1 = zeros(bDotApprox.nmax,1);
-           bDotApprox.b2 = zeros(bDotApprox.nmax,1);
-           bDotApprox.t = zeros(bDotApprox.nmax,1);
-           bDotApprox.h = hval;
-           [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
-           errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
-           if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
-             errs(ih) = 1;
+     if (run_erk)
+       if ((length(ERKmethods) > 0) && (abs(lambda)<=100))
+         for ib = 1:length(ERKmethods)
+           mname = ERKmethods{ib};
+           B = butcher(mname);  s = numel(B(1,:))-1;  q = B(s+1,1);
+           fprintf('\n   ERK integrator: %s (order = %i)\n',mname,q)
+           errs_rms = zeros(size(hvals));
+           errs_max = zeros(size(hvals));
+           order = zeros(length(hvals)-1,1);
+           for ih = 1:length(hvals)
+             hval = hvals(ih)/lambda/20;
+             fprintf('      h = %.5e,',hval);
+             bDotApprox.nmax = max(3,q);
+             bDotApprox.nstored = 0;
+             bDotApprox.b1 = zeros(bDotApprox.nmax,1);
+             bDotApprox.b2 = zeros(bDotApprox.nmax,1);
+             bDotApprox.t = zeros(bDotApprox.nmax,1);
+             bDotApprox.h = hval;
+             [t,Y,ns,af] = solve_ERK(fn, Es, tout, Y0, B, rtol, atol, hval, hval);
+             errs(ih) = sqrt(sum(sum((Y-Yref).^2))/numel(Y));
+             if (isnan(errs(ih)) || isinf(errs(ih)) || errs(ih) > 10)
+               errs(ih) = 1;
+             end
+             ERK_approx_rmserrs(il,ib,ih) = errs(ih);
+             if (ih>1)
+               order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
+               fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
+             else
+               fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
+             end
+             fprintf('      temporal error fails = %i\n',af);
            end
-           ARK_approx_rmserrs(il,ib,ih) = errs(ih);
-           if (ih>1)
-             order(ih-1) = log( errs(ih)/errs(ih-1) ) / log( hvals(ih)/hvals(ih-1) );
-             fprintf('  rmserr = %.2e,  lsolves = %i,  order = %.2e\n',errs(ih),nl,order(ih-1));
-           else
-             fprintf('  rmserr = %.2e,  lsolves = %i\n',errs(ih),nl);
-           end
-           fprintf('      temporal error fails = %i\n',af);
-         end
-         s = sort(order);  ord = s(end-1);
-         fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
-         ERK_approx_ord(il,ib) = ord;
-         ERK_approx_ordred(il,ib) = max(0,q-ord);
+           s = sort(order);  ord = s(end-1);
+           fprintf('    estimated order = %g,  reduction = %g\n',ord,max(0,q-ord))
+           ERK_approx_ord(il,ib) = ord;
+           ERK_approx_ordred(il,ib) = max(0,q-ord);
 
+         end
        end
      end
    end
