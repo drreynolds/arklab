@@ -23,11 +23,11 @@
 clear
 
 % general driver flags
-create_diary = True;
-store_output = True;
-run_natural = True;
-run_forced = True;
-run_approx = True;
+create_diary = true;
+store_output = true;
+run_natural = true;
+run_forced = true;
+run_approx = true;
 
 % start output diary
 if (create_diary)
