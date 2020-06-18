@@ -2,7 +2,7 @@ function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK(fe,fi,Ji,tvals,Y0,
 % usage: [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK(fe,fi,Ji,tvals,Y0,Be,Bi,rtol,atol,hmin,hmax,alg)
 %
 % Adaptive time step additive Runge-Kutta solver for the
-% vector-valued ODE problem  
+% vector-valued ODE problem
 %     y' = fe(t,Y) + fi(t,Y), t in tvals, y in R^m,
 %     Y(t0) = [y1(t0), y2(t0), ..., ym(t0)]'.
 %
@@ -33,7 +33,7 @@ function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK(fe,fi,Ji,tvals,Y0,
 %                 0 - solve for stages, z_i  [default]
 %                 1 - solve for stage RHS, k_i
 %
-% Outputs: 
+% Outputs:
 %     tvals  = the same as the input array tvals
 %     y      = [y(t0), y(t1), y(t2), ..., y(tN)], where each
 %               y(t*) is a column vector of length m.
@@ -43,7 +43,7 @@ function [tvals,Y,nsteps,lits,cfails,afails,ierr] = solve_ARK(fe,fi,Ji,tvals,Y0,
 %     afails = number of temporal accuracy error failures
 %     ierr   = flag denoting success (0) or failure (1)
 %
-% Note: to run in fixed-step mode, call with hmin=hmax as the desired 
+% Note: to run in fixed-step mode, call with hmin=hmax as the desired
 % time step size.
 %
 % Daniel R. Reynolds
@@ -58,7 +58,7 @@ if ~exist('alg','var')
 end
 
 % check for compatible Be,Bi tables
-if (size(Be,2) ~= size(Bi,2))   
+if (size(Be,2) ~= size(Bi,2))
    error('solve_ARK error: Be and Bi must have the same number of stages')
 end
 s = size(Be,2) - 1;          % number of stages
@@ -119,8 +119,8 @@ else
    newt_maxit = 10;        % max number of Newton iterations
 end
 newt_tol   = 0.1;          % Newton solver tolerance factor
-h_cfail    = 0.25;         % failed newton solve step reduction factor 
-h_reduce   = 0.1;          % failed step reduction factor 
+h_cfail    = 0.25;         % failed newton solve step reduction factor
+h_reduce   = 0.1;          % failed step reduction factor
 h_safety   = 0.96;         % adaptivity safety factor
 h_growth   = 10;           % adaptivity growth bound
 e_bias     = 1.5;          % error bias factor
@@ -148,7 +148,7 @@ Fdata.di = di;
 Fdata.s  = s;     % number of stages
 
 % set function names for solve components, depending on the choice of 'alg'
-if (alg == 1) 
+if (alg == 1)
    Init  = @Init_k;   % initializes solution storage
    Guess = @Guess_k;  % initial Newton guess
    Rhs   = @Rhs_k;    % just before equation (45)
@@ -182,8 +182,8 @@ for tstep = 2:length(tvals)
 
    % loop over internal time steps to get to desired output time
    while ((t-tvals(tstep))*h < 0)
-      
-      % bound internal time step 
+
+      % bound internal time step
       h = max([h, hmin]);            % enforce minimum time step size
       h = min([h, hmax]);            % maximum time step size
       h = min([h, tvals(tstep)-t]);  % stop at output time
@@ -202,43 +202,36 @@ for tstep = 2:length(tvals)
 
       % reset stage failure flag
       st_fail = 0;
-      
+
       % loop over stages
       for stage = 1:s
-         
+
          % update Fdata and set Newton initial guess
          Fdata.tcur = t + h*ci(stage);      % 'time' for current [implicit] stage
          Fdata.stage = stage;               % current stage index
          [NewtGuess,Fdata] = Guess(NewtSol, Fdata, storage);
          Fdata.rhs = Rhs(storage, Fdata);   % 'RHS' of known data
-         
-         % set nonlinear solver tolerances based on 'alg' type
-         if (alg == 1) 
-            n_tol = newt_tol / h;
-         else
-            n_tol = newt_tol;
-         end         
-         
+
          % call Newton solver and increment linear solver statistics
-         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, n_tol, newt_maxit, 0);
+         [NewtSol,lin,nierr] = newton(Res, Jres, NewtGuess, Fdata, ewt, newt_tol, newt_maxit, 0);
          lits = lits + lin;
-         
+
          % if Newton method failed, set relevant flags/statistics
          % and break out of stage loop
-         if (nierr ~= 0) 
+         if (nierr ~= 0)
             st_fail = 1;
             cfails = cfails + 1;
             break;
          end
-         
+
          % store stage solution
          storage = Store(NewtSol, Fdata, storage);
-         
+
       end
-      
+
       % increment number of internal time steps taken
       nsteps = nsteps + 1;
-      
+
       % compute new solution (and embedding if available)
       [Ynew,Y2] = Sol(storage,Fdata);
 
@@ -249,7 +242,7 @@ for tstep = 2:length(tvals)
          if (adaptive)
 
             % if already at minimum step, just return with failure
-            if (h <= hmin) 
+            if (h <= hmin)
                ierr = 1;
                fprintf('Stage solve failure at minimum step size (t=%g).\n  Consider reducing hmin.\n',Fdata.tcur);
                return
@@ -259,7 +252,7 @@ for tstep = 2:length(tvals)
             Ynew = Y0;
             h = h * h_cfail;
             continue;
-         
+
          % if time step adaptivity disabled, just return with failure
          else
             ierr = 1;
@@ -268,38 +261,38 @@ for tstep = 2:length(tvals)
          end
 
       end
-      
+
       % if we made it to this point, then all stage solves succeeded
-      
+
       % if time step adaptivity enabled, check step accuracy
       if (adaptive)
 
          % estimate error in current step
          err_step = e_bias * max(WrmsNorm(Ynew - Y2, ewt), eps);
-         
+
          % if error too high, flag step as a failure (will be be recomputed)
-         if (err_step > ERRTOL*ONEPSM) 
+         if (err_step > ERRTOL*ONEPSM)
             afails = afails + 1;
             st_fail = 1;
-            
+
             % if already at minimum step, just return with failure
-            if (h <= hmin) 
+            if (h <= hmin)
                ierr = 1;
                fprintf('Temporal error failure at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
                return
             end
-            
+
          end
-         
+
       end
 
       % if step was successful (solves succeeded, and error acceptable)
-      if (st_fail == 0) 
-         
+      if (st_fail == 0)
+
          % update solution and time for last successful step
          Y0 = Ynew;
          t  = t + h;
-         
+
          % for adaptive methods, use error estimate to adapt the time step
          if (adaptive)
 
@@ -314,12 +307,12 @@ for tstep = 2:length(tvals)
          else
             h = hmin;
          end
-         
+
       % if the error test failed
       else
 
          % if already at minimum step, just return with failure
-         if (h <= hmin) 
+         if (h <= hmin)
             ierr = 1;
             fprintf('Cannot achieve desired accuracy at minimum step size (t=%g).\n  Consider reducing hmin or increasing rtol.\n',Fdata.tcur);
             return
@@ -329,14 +322,14 @@ for tstep = 2:length(tvals)
          Ynew = Y0;
          h_old = h;
          h = min(h_safety * h_old * err_step^(-1.0/p), h_old*h_reduce);
-         
+
       end  % end logic tests for step success/failure
-      
+
    end  % end while loop attempting to solve steps to next output time
 
    % store updated solution in output array
    Y(:,tstep) = Ynew;
-   
+
 end  % time step loop
 
 % end solve_ARK function
@@ -382,7 +375,7 @@ function [r] = Rhs_z(Z, Fdata)
 %    Z     = stage solutions [z_1, ..., z_{stage-1}]
 %    Fdata = structure containing extra problem information
 %
-% Outputs: 
+% Outputs:
 %    r     = rhs vector containing all 'known' information for
 %            implicit stage solve
 %
@@ -411,8 +404,8 @@ function F = Res_z(zcor, Fdata)
 % This function computes the (non)linear residuals for an intermediate
 % stage solution, through calling the user-supplied (in Fdata) ODE
 % right-hand side function.
-   
-z = Fdata.zpred + zcor;   
+
+z = Fdata.zpred + zcor;
 F = z - Fdata.rhs - Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*Fdata.fi(Fdata.tcur, z);
 end
 
@@ -426,9 +419,9 @@ function Amat = Jres_z(zcor, Fdata)
 %
 % This function computes the Jacobian of each intermediate stage residual
 % for a multi-stage ARK method, through calling the user-supplied (in
-% Fdata) ODE Jacobian function. 
+% Fdata) ODE Jacobian function.
 
-z = Fdata.zpred + zcor;   
+z = Fdata.zpred + zcor;
 Amat = eye(length(z)) - Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*Fdata.Ji(Fdata.tcur, z);
 end
 
@@ -440,9 +433,9 @@ function [y,y2] = Sol_z(Z, Fdata)
 %    Z     = stage solutions [z1, ..., zs]
 %    Fdata = structure containing extra problem information
 %
-% Outputs: 
+% Outputs:
 %    y     = step solution built from the Z values
-%    y2    = embedded solution (if embedding included in Butcher 
+%    y2    = embedded solution (if embedding included in Butcher
 %               table; otherwise the same as y)
 
 % call RHS at each stored stage
@@ -508,7 +501,7 @@ function [r] = Rhs_k(K, Fdata)
 %    K     = stage rhs [fi(z_1), ..., fi(z_{stage-1}), fe(z_1), ..., fe(z_{stage-1})]
 %    Fdata = structure containing extra problem information
 %
-% Outputs: 
+% Outputs:
 %    r     = rhs vector containing all 'known' information for
 %            implicit stage solve
 %
@@ -532,8 +525,8 @@ function F = Res_k(kcor, Fdata)
 % This function computes the (non)linear residuals for an intermediate
 % stage solution, through calling the user-supplied (in Fdata) ODE
 % right-hand side function.
-   
-k = Fdata.kpred + kcor;   
+
+k = Fdata.kpred + kcor;
 F = k - Fdata.fi(Fdata.tcur, Fdata.rhs + Fdata.h*Fdata.Ai(Fdata.stage,Fdata.stage)*k);
 end
 
@@ -547,9 +540,9 @@ function Amat = Jres_k(kcor, Fdata)
 %
 % This function computes the Jacobian of each intermediate stage residual
 % for a multi-stage ARK method, through calling the user-supplied (in
-% Fdata) ODE Jacobian function. 
+% Fdata) ODE Jacobian function.
 
-k    = Fdata.kpred + kcor;   
+k    = Fdata.kpred + kcor;
 Aii  = Fdata.Ai(Fdata.stage,Fdata.stage);
 Amat = eye(length(k)) - Fdata.h*Aii*Fdata.Ji(Fdata.tcur, Fdata.rhs + Fdata.h*Aii*k);
 end
@@ -562,9 +555,9 @@ function [y,y2] = Sol_k(K, Fdata)
 %    K     = stage rhs [fi(z_1), ..., fi(z_{stage-1}), fe(z_1), ..., fe(z_{stage-1})]
 %    Fdata = structure containing extra problem information
 %
-% Outputs: 
+% Outputs:
 %    y     = step solution
-%    y2    = embedded solution (if embedding included in Butcher 
+%    y2    = embedded solution (if embedding included in Butcher
 %               table; otherwise the same as y)
 
 % have RHS at each stored stage, so just piece together
