@@ -1064,7 +1064,7 @@ elseif (strcmp(method_name,'ERK-2-2'))   % Ralston's method, doi: 10.1090/S0025-
    q = 2;
    B = [c, A; q, b];
 
-elseif (strcmp(method_name,'ERK-3-3'))
+elseif (strcmp(method_name,'ERK-3-3'))  % Butcher, eq (233f), isbn: 978-0-470-75375-0
 
    A = [ z, z, z; v(1)/v(2), z, z; v(-1), v(2), z];
    b = [ v(1)/v(6), v(2)/v(3), v(1)/v(6)];
@@ -1074,7 +1074,7 @@ elseif (strcmp(method_name,'ERK-3-3'))
    p = 2;
    B = [c, A; q, b; p, b2];
 
-elseif (strcmp(method_name,'ERK-4-4'))
+elseif (strcmp(method_name,'ERK-4-4'))  % Kutta, Zeitschrift für Math. u. Phys., 1901
 
    A = [z, z, z, z; v(1)/v(2), z, z, z; z, v(1)/v(2), z, z; z, z, v(1), z];
    b = [v(1)/v(6), v(1)/v(3), v(1)/v(3), v(1)/v(6)];
