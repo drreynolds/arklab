@@ -394,7 +394,12 @@ function Amat = Jres_z(zcor, Fdata)
 % Fdata) ODE Jacobian function.
 
 z = Fdata.zpred + zcor;
-Amat = eye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*Fdata.J(Fdata.tcur, z);
+J = Fdata.J(Fdata.tcur, z);
+if (issparse(J))
+  Amat = speye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*J;
+else
+  Amat = eye(length(z)) - Fdata.h*Fdata.A(Fdata.stage,Fdata.stage)*J;
+end
 end
 
 
@@ -506,7 +511,12 @@ function Amat = Jres_k(kcor, Fdata)
 
 k = Fdata.kpred + kcor;
 Aii = Fdata.A(Fdata.stage,Fdata.stage);
-Amat = eye(length(k)) - Fdata.h*Aii * Fdata.J(Fdata.tcur, Fdata.rhs + Fdata.h*Aii*k);
+J = Fdata.J(Fdata.tcur, Fdata.rhs + Fdata.h*Aii*k);
+if (issparse(J))
+  Amat = speye(length(k)) - Fdata.h*Aii * J;
+else
+  Amat = eye(length(k)) - Fdata.h*Aii * J;
+end
 end
 
 
